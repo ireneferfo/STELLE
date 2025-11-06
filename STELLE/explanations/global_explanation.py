@@ -1150,6 +1150,7 @@ def get_training_explanations(
     imp_t_g=0.01,
     t_k=0.95,
     k=None,
+    pll = 0
 ):
     training_local_explanations = model.get_explanations(
             x=trainloader.dataset.trajectories,
@@ -1169,6 +1170,6 @@ def get_training_explanations(
         class_explanations = ClassExplanation(
             training_local_explanations, is_training=True
         )
-        class_explanations.get_explanations(improvement_threshold=imp_t_g)
+        class_explanations.generate_class_explanations(improvement_threshold=imp_t_g, max_workers=pll)
         return class_explanations
     return None
