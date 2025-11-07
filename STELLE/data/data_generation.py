@@ -13,6 +13,7 @@ Functions:
 from typing import Tuple
 
 import torch
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 
@@ -100,6 +101,7 @@ def plot_trajectories(
     y: torch.Tensor,
     num_classes: int = 3,
     samples_per_class: int = 5,
+    path = None
 ) -> None:
     """
     Plot sample trajectories for each variable and class.
@@ -134,4 +136,9 @@ def plot_trajectories(
     # Place a single legend (only uses labels from first subplot)
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    if path is not None:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(path, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()

@@ -15,14 +15,14 @@ Key Features:
 
 # For custom type-hints
 from typing import Union
-
-realnum = Union[float, int]
-
-# For tensor functions
 import torch
 from torch import Tensor
 import torch.nn.functional as F
 import os
+
+realnum = Union[float, int]
+
+# For tensor functions
 
 # TODO: automatic check of timespan when evaluating robustness? (should be done only at root node)
 

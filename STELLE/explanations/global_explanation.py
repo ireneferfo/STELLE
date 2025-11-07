@@ -1150,7 +1150,7 @@ def get_training_explanations(
     imp_t_g=0.01,
     t_k=0.95,
     k=None,
-    pll = 0
+    pll = 1
 ):
     training_local_explanations = model.get_explanations(
             x=trainloader.dataset.trajectories,

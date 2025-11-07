@@ -546,7 +546,6 @@ class ConceptBasedModel(nn.Module):
         last_epsilon = None
 
         for epoch in range(start_epoch, num_epochs):
-            print(f"epoch {epoch}")
             epoch_start = time()
 
             # Update temporal embeddings if epsilon changed
@@ -927,16 +926,13 @@ class ConceptBasedModel(nn.Module):
         x_requires_grad = x.requires_grad_()
         targets = y_pred if y_true is None else y_pred
 
-        print('computing attributions')
         attribution_weights = self._compute_attributions(
             x_requires_grad, targets, layer, method
         )
-        print('compute final attribution matrix')
         # Compute final attribution matrix
         final_matrix = self._compute_final_attributions(
             attGs, attribution_weights, y_pred, targets
         )
-        print('compute scores')
         # Get discriminative scores
         discriminative_scores = self._compute_discriminative_scores(
             final_matrix, targets, op
@@ -946,7 +942,6 @@ class ConceptBasedModel(nn.Module):
             grouped_matrix = self._group_matrix_by_class(final_matrix, targets)
             return grouped_matrix, y_pred
 
-        print('generate expls')
         # Generate explanations
         explanations = self._generate_explanations(
             x, y_true, y_pred, discriminative_scores, trajbyclass, k, t_k

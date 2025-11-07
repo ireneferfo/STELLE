@@ -266,7 +266,7 @@ class FormulaManager:
         batch_size: int,
     ) -> Tuple[List, torch.Tensor, torch.Tensor, float]:
         """Generate completely new set of formulae."""
-        print(f"Generating {target_count} {formulae_type} from scratch")
+        # print(f"Generating {target_count} {formulae_type} from scratch")
         start_time = time()
         
         if creation_mode == 1:
