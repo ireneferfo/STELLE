@@ -18,7 +18,6 @@ from ..kernels.base_measure import BaseMeasure
 from ..utils import dump_pickle, chunks, save_file
 
 
-
 def time_scaling(phis, points, phi_timespan=101):
     # Rescale the time intervals in the given phis formulae
     current_one_percent = (
@@ -38,13 +37,16 @@ def time_scaling(phis, points, phi_timespan=101):
         temporal_end_idx = [
             i for i in range(len(phi_str)) if phi_str.startswith("]", i)
         ]
+        # print(f'{temporal_start_idx=}')
+        # print(f'{temporal_middle_idx=}')
+        # print(f'{temporal_end_idx=}')
         # Get the start index of the first interval, if any
         start_idx = temporal_start_idx[0] if len(temporal_start_idx) > 0 else None
         str_list = [
             phi_str[:start_idx]
         ]  # Initialize a list to store parts of the new formula
         new_intervals_list = []  # Initialize a list to store the new time intervals
-
+        rights = 0
         # Iterate through the indices of the temporal intervals
         for i, s, m, e in zip(
             range(len(temporal_start_idx)),
@@ -72,15 +74,19 @@ def time_scaling(phis, points, phi_timespan=101):
                 current_time_interval[0] * current_one_percent
             )  # Scale the left bound of the interval
             # Scale the entire interval and ensure it does not exceed the number of points
+            
+            # Ensure end is at most points and greater than start
+            new_right = new_left + max(math.floor(current_percentage * current_one_percent), 1)
+            new_right = min(new_right, points)
+            rights += new_right
+            
+            if rights > points:
+                diff = rights - points
+                new_right = new_right - diff
+                
             new_time_interval = [
                 new_left,
-                min(
-                    [
-                        new_left
-                        + math.floor(current_percentage * current_one_percent),
-                        points,
-                    ]
-                ),
+                new_right
             ]
             new_right_str = (
                 "inf" if right_unbound else str(new_time_interval[1])
