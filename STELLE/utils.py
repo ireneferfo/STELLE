@@ -42,7 +42,7 @@ def merge_result_dicts(dicts:list):
         return result_raw
 
 
-def setup_paths(base_path:str, args: argparse.Namespace, dataname: str, config) -> Dict[str, str]:
+def setup_paths(base_path:str, model_path:str,  args: argparse.Namespace, dataname: str, config) -> Dict[str, str]:
     """Setup all required directory paths."""
     if args.temp:
         base_path = tempfile.mkdtemp()
@@ -73,9 +73,9 @@ def setup_paths(base_path:str, args: argparse.Namespace, dataname: str, config) 
         model_path_og = tempfile.mkdtemp()
     else:
         model_path_og = (
-            os.path.join(os.environ["WORK"], f"STELLE/{base_path}{dataname}/checkpoints/")
+            os.path.join(os.environ["WORK"], f"STELLE/{model_path}{dataname}/checkpoints/")
             if args.demetra
-            else os.path.join(base_path, dataname, "checkpoints/")
+            else os.path.join(model_path, dataname, "checkpoints/")
         )
     
     return {

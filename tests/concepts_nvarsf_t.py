@@ -66,8 +66,9 @@ def main():
     args = parse_arguments()
     config = ExperimentConfig()
     device = setup_environment(config.seed)
-    base_path = "ablation_tests/results/var_dimconcepts/"
-    paths = setup_paths(base_path, args, args.dataset, config)
+    base_path = "ablation_tests/results/concepts_nvarf_t/"
+    model_path = "ablation_tests/results/concepts_checkpoints/"
+    paths = setup_paths(base_path, model_path, args, args.dataset, config)
     os.makedirs(paths['results_dir'], exist_ok=True)
     os.makedirs(paths['model_path_og'], exist_ok=True)
     
@@ -79,39 +80,42 @@ def main():
     results = []
     
     # from here it depends from concepts details
-    for dim_concepts in [10, 1000, 2000, 5000]:
-        print(f'\n>>>>>>>>>>>>> DIM CONCEPTS = {dim_concepts} >>>>>>>>>>>>>\n')
-        config_i = replace(config, dim_concepts=dim_concepts)
-        
-        kernel, concepts_time = set_kernels_and_concepts(trainloader.dataset, paths['phis_path_og'], config_i)
+    for n_vars_formulae in [1,2,3]:
+        print(f'\n>>>>>>>>>>>>> N VARS FORMULAE = {n_vars_formulae} >>>>>>>>>>>>>\n')
+        for t in [1, 0.99, 0.97, 0.95]:
+            print(f'\n>>>>>>>>>>>>> T = {t} >>>>>>>>>>>>>\n')
+            config_i = replace(config, n_vars_formulae=n_vars_formulae, t=t)
+            
+            kernel, concepts_time = set_kernels_and_concepts(trainloader.dataset, paths['phis_path_og'], config_i)
 
-        model_id = (
-            f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_attn}_{config_i.h}_"
-            f"{config_i.n_layers}_t{config_i.t}_{config_i.dim_concepts}_"
-            f"{config_i.creation_mode}_f{config_i.n_vars_formulae}"
-        )
-        # attach to model for later reference and debugging
-        print(f"Model ID: {model_id}")
-        model_path_ev = os.path.join(paths['model_path_og'], f"{model_id}.pt")
+            model_id = (
+                f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_attn}_{config_i.h}_"
+                f"{config_i.n_layers}_t{config_i.t}_{config_i.dim_concepts}_"
+                f"{config_i.creation_mode}_f{config_i.n_vars_formulae}"
+            )
+            # attach to model for later reference and debugging
+            print(f"Model ID: {model_id}")
+            model_path_ev = os.path.join(paths['model_path_og'], f"{model_id}.pt")
 
-        args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
-        model, accuracy_results = train_test_model(args)
+            args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
+            model, accuracy_results = train_test_model(args)
 
-        args_explanations = (model_path_ev, trainloader, testloader, model, config_i)
-        local_metrics, global_metrics = compute_explanations(args_explanations)
-        
-        result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
-        
-        result = {
-            'dim_concepts': config_i.dim_concepts,
-            'concepts_time': round(concepts_time,3),
-            **result_raw
-        }
-        
-        result = flatten_dict(result)
-        results.append(result)
-        
-        save_results(results, paths['results_dir'])
+            args_explanations = (model_path_ev, trainloader, testloader, model, config_i)
+            local_metrics, global_metrics = compute_explanations(args_explanations)
+            
+            result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
+            
+            result = {
+                'dim_concepts': config_i.dim_concepts,
+                'creation_mode': config_i.creation_mode,
+                'concepts_time': round(concepts_time,3),
+                **result_raw
+            }
+            
+            result = flatten_dict(result)
+            results.append(result)
+            
+            save_results(results, paths['results_dir'])
 
 
 if __name__ == "__main__":
