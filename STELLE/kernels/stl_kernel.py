@@ -25,7 +25,6 @@ class StlKernel:
         points: int = 100,
         boolean: bool = False,
         signals: Optional[torch.Tensor] = None,
-        newstl: bool = True,
         vectorize: bool = True,
     ):
         self.traj_measure = measure
@@ -37,7 +36,6 @@ class StlKernel:
         self.points = points
         self.device = measure.device
         self.boolean = boolean
-        self.newstl = newstl
         self.vectorize = vectorize
         
         # Initialize signals

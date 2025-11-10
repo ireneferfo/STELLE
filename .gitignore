@@ -1,4 +1,4 @@
 __pycache__/
 .DS_store
 results/
-ablation_tests
+notebooks/

@@ -122,11 +122,11 @@ def plot_trajectories(
         plt.subplot(n_vars, 1, var + 1)
         for cls in range(num_classes):
             # Indices of samples belonging to this class
-            class_indices = (y == cls).nonzero(as_tuple=True)[0][:samples_per_class]
+            class_indices = (y == cls).nonzero()[0][:samples_per_class]
             for idx in class_indices:
                 # Plot trajectory for this sample and variable
                 plt.plot(
-                    X[int(idx), var].cpu(),
+                    X[int(idx), var],
                     label=f"class {cls}" if var == 0 else "",
                     color=colors[cls % len(colors)],
                 )

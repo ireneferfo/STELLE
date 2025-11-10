@@ -8,7 +8,7 @@ from typing import List, Optional, Dict
 
 from .base_explanations import ExplanationBase, ExplanationResult
 from ..formula_generation.stl import Not
-from ECATS.stl_utils import (
+from ..formula_generation.formula_manipulation import (
     rescale_var_thresholds,
     conjunction,
     simplify,

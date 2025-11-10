@@ -23,7 +23,6 @@ class TrajectoryKernel:
         varn: int = 2,
         points: int = 100,
         signals: Optional[torch.Tensor] = None,
-        newstl: bool = True,
         normalize: bool = False,
         exp_kernel: bool = False,
         normalize_rhotau: bool = True,
@@ -35,7 +34,6 @@ class TrajectoryKernel:
         self.varn = varn
         self.points = points
         self.device = measure.device
-        self.newstl = newstl
         self.exp_kernel = exp_kernel
         self.normalize = normalize
         self.normalize_rhotau = normalize_rhotau
@@ -52,7 +50,6 @@ class TrajectoryKernel:
             measure=measure,
             varn=varn,
             points=points,
-            newstl=True,
             signals=signals,
             vectorize=False,
             samples=samples,

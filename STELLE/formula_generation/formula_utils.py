@@ -266,9 +266,8 @@ def from_string_to_formula(st):
     return root_phi
 
 
-def change_variable_idx(phis, old, new, newstl = True):
+def change_variable_idx(phis, old, new):
     ps_strings = [str(p).replace(f'x_{old}', f'x_{new}') for p in phis]
-    if newstl: return list(map(from_string_to_formula, ps_strings))
     return list(map(from_string_to_formula, ps_strings))
 
 

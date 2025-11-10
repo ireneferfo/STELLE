@@ -3,12 +3,149 @@ import os
 import random
 import torch 
 import pickle
+import json
+import csv
+import argparse
+import tempfile
+from typing import Dict, Any, List
+from datetime import datetime
+
 
 def get_device():
     if not torch.backends.mps.is_available():
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return "mps"
 
+def setup_environment(seed: int) -> torch.device:
+    """Initialize device and set deterministic behaviour."""
+    # for absolute reproducibility avoid: AMP, benchmark=True, pin_memory=True, persistent_workers=True
+    device = get_device()
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.multiprocessing.set_sharing_strategy("file_system")
+    set_all_possible_seeds(seed)
+    
+    print("DEVICE:", device)
+    print("Assigned GPU(s):", os.environ.get("CUDA_VISIBLE_DEVICES"))
+    
+    return device
+
+
+def merge_result_dicts(dicts:list):
+        result_raw = {}
+        # merge dictionaries; later ones override earlier keys on conflict
+        for d in dicts:
+            if isinstance(d, dict):
+                result_raw.update(d)
+            else:
+                result_raw[f'{d=}'.split('=')[0]] = d
+        return result_raw
+
+
+def setup_paths(base_path:str, args: argparse.Namespace, dataname: str, config) -> Dict[str, str]:
+    """Setup all required directory paths."""
+    if args.temp:
+        base_path = tempfile.mkdtemp()
+    
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Adjust dataset name for synthetic data
+    if dataname == 'synthetic':
+        dataname = (
+            f'synthetic_{config.n_train}-{config.n_test}_v{config.n_vars}_'
+            f'p{config.series_length}_c{config.num_classes}'
+        )
+    
+    results_dir = os.path.join(base_path, dataname, run_id)
+    
+    # Setup phis path
+    if args.tempphis:
+        phis_path_og = tempfile.mkdtemp()
+    else:
+        phis_path_og = (
+            os.path.join(os.environ["WORK"], "STELLE/phis/")
+            if args.demetra
+            else "phis/"
+        )
+    
+    # Setup model checkpoint path
+    if args.nocheckpoints:
+        model_path_og = tempfile.mkdtemp()
+    else:
+        model_path_og = (
+            os.path.join(os.environ["WORK"], f"STELLE/{base_path}{dataname}/checkpoints/")
+            if args.demetra
+            else os.path.join(base_path, dataname, "checkpoints/")
+        )
+    
+    return {
+        'results_dir': results_dir,
+        'dataset_info_path': os.path.join(results_dir, "info.txt"),
+        'phis_path_og': phis_path_og,
+        'model_path_og': model_path_og,
+        'run_id': run_id,
+        'dataname': dataname
+    }
+
+
+def save_results(results: List[Dict[str, Any]], results_dir: str):
+    """Save experiment results to CSV file."""
+    if not results:
+        return
+    
+    csv_path = os.path.join(results_dir, "results.csv")
+    keys = results[0].keys()
+    
+    with open(csv_path, 'w', newline='') as f:
+        writer = csv.DictWriter(f, keys)
+        writer.writeheader()
+        writer.writerows(results)
+        
+        
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Run ablation tests")
+    parser.add_argument(
+        "dataset", type=str, nargs="?", default="synthetic",
+        help="Dataset name"
+    )
+    parser.add_argument(
+        "-temp", action="store_true", default=False,
+        help="Use temporary directory for results"
+    )
+    parser.add_argument(
+        "-tempphis", action="store_true", default=False,
+        help="Use temporary directory for concepts"
+    )
+    parser.add_argument(
+        "-nocheckpoints", action="store_true", default=False,
+        help="Don't save model checkpoints"
+    )
+    parser.add_argument(
+        "-demetra", action="store_true", default=False,
+        help="Use Demetra cluster paths"
+    )
+    
+    return parser.parse_args()
+
+
+def save_run_settings(results_dir, **kwargs):
+    constants = {**kwargs}
+    info_file_path = results_dir + 'run_info.txt'
+    
+    # Filter out non-serializable objects
+    serializable_constants = {}
+    for key, value in constants.items():
+        try:
+            json.dumps(value)  # Test if serializable
+            serializable_constants[key] = value
+        except (TypeError, ValueError):
+            # Skip non-serializable objects
+            serializable_constants[key] = f"<{type(value).__name__} - not serializable>"
+    
+    with open(info_file_path, "w") as file:
+        file.write(json.dumps(serializable_constants, indent=2))
+        
 
 def set_all_possible_seeds(s=0):
     random.seed(s)

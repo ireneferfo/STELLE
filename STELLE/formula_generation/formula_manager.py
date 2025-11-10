@@ -69,7 +69,7 @@ class FormulaManager:
         if creation_mode == 0:
             return self._get_formulae(count, formulae_type, creation_mode, output_directory, seed, batch_size)
         elif creation_mode == 1:
-            if formulae_per_var == None:
+            if formulae_per_var is None:
                 formulae_per_var = count//self.n_vars
             return self._get_formulae_per_variable(formulae_per_var, min_total, formulae_type, output_directory, seed, batch_size)
  
@@ -156,7 +156,7 @@ class FormulaManager:
         if self.cosine_threshold > 1.0:
             raise ValueError(f"self.cosine_threshold must be <= 1 (got {self.cosine_threshold})")
         if formulae_type not in {"anchors", "concepts"}:
-            raise ValueError(f"formulae_type must be 'anchors' or 'concepts'")
+            raise ValueError("formulae_type must be 'anchors' or 'concepts'")
     
     def _load_times_cache(self) -> None:
         """Load timing information from cache file."""
