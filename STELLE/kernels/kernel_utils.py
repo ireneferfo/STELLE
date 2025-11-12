@@ -48,7 +48,7 @@ def set_kernels_and_concepts(
     gc.collect()
     torch.cuda.empty_cache()
     
-    return kernel, total_time
+    return kernel, formula_manager, total_time
 
 
 def _validate_parameters(n_vars, n_vars_formulae, creation_mode):

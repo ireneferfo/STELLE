@@ -5,8 +5,10 @@ import os
 from .model import ConceptBasedModel, ModelConfig
 
 
-def train_test_model(args):
-    """Train or load a concept-based model with the given configuration."""
+def train_test_model(args, type: str = 'base', **kwargs):
+    """Train or load a concept-based model with the given configuration.
+    Type (str): base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor
+    """
     (
         kernel, trainloader, valloader, testloader, model_path_ev, config
     ) = args
@@ -20,7 +22,7 @@ def train_test_model(args):
         model, bestepoch, traintime, testresults, testtime = loaded
     else:
         # Create and train new model
-        model = _create_model(kernel, trainloader, config.init_eps, config.init_attn, config.d, config.workers, config.h, config.n_layers, device)
+        model = _create_model(kernel, trainloader, config, type, device, **kwargs)
         model, bestepoch, traintime = _train_model(
             model, trainloader, valloader, config.lr, config.epochs, config.verbose,
             checkpath, config.patience, config.cf, config.val_every_n_epochs
@@ -39,20 +41,56 @@ def train_test_model(args):
     return model, results
 
 
-def _create_model(kernel, trainloader, init_eps, init_attn, d, pll, h, n_layers, device):
+def _create_model(kernel, trainloader, config, type, device, **kwargs):
     """Create a new ConceptBasedModel instance."""
-    config = ModelConfig(
+    if type == 'Anchor':
+        from .model_variants import AnchorModelConfig
+        modelconfig = AnchorModelConfig(
+        kernel=kernel,
+        base_concepts = kernel.phis, 
+        concepts=kwargs.get('concepts'),
+        concept_embeddings = kwargs.get('concept_embeddings'), 
+        num_classes=trainloader.dataset.num_classes,
+        initial_epsilon=config.init_eps,
+        initial_concept_relevance_scale=config.init_crel,
+        dropout=config.d,
+        parallel_workers=config.pll,
+        hidden_size=config.h,
+        num_layers=config.n_layers,
+        )
+    else:
+        modelconfig = ModelConfig(
         kernel=kernel,
         concepts=kernel.phis,
         num_classes=trainloader.dataset.num_classes,
-        initial_epsilon=init_eps,
-        initial_attention_scale=init_attn,
-        dropout=d,
-        parallel_workers=pll,
-        hidden_size=h,
-        num_layers=n_layers,
-    )
-    return ConceptBasedModel(config).to(device)
+        initial_epsilon=config.init_eps,
+        initial_concept_relevance_scale=config.init_crel,
+        dropout=config.d,
+        parallel_workers=config.pll,
+        hidden_size=config.h,
+        num_layers=config.n_layers,
+        )
+    match type:
+        case 'base': 
+            return ConceptBasedModel(modelconfig).to(device)
+        case 'RobsAsGx':
+            from .model_variants import ConceptBasedModel_RobsAsGx
+            return ConceptBasedModel_RobsAsGx(modelconfig).to(device)
+        case 'NoGx':
+            from .model_variants import ConceptBasedModel_NoGx
+            return ConceptBasedModel_NoGx(modelconfig).to(device)
+        case 'RobsAsHx':
+            from .model_variants import ConceptBasedModel_RobsAsHx
+            return ConceptBasedModel_RobsAsHx(modelconfig).to(device)
+        case 'Robs':
+            from .model_variants import ConceptBasedModel_Robs
+            return ConceptBasedModel_Robs(modelconfig).to(device)
+        case 'Anchor':
+            from .model_variants import ConceptBasedModel_Anchor
+            return ConceptBasedModel_Anchor(modelconfig).to(device)
+        case _:
+            raise ValueError(f'Model of type {type} does not exist yet. Options: base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor')
+
 
 
 def _train_model(model, trainloader, valloader, lr, epochs, verbose, checkpath, patience, cf, val_every_n_epochs):
