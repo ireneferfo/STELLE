@@ -91,7 +91,7 @@ def main():
     results = []
 
     # from here it depends from concepts details
-    for dim_concepts in [10, 1000, 2000, 5000]:
+    for dim_concepts in [50, 100, 500, 1000, 2000, 3000, 4000, 5000]:
         print(f"\n>>>>>>>>>>>>> DIM CONCEPTS = {dim_concepts} >>>>>>>>>>>>>\n")
         for creation_mode in ["one", "all"]:
             print(f"\n>>>>>>>>>>>>> CREATION MODE = {creation_mode} >>>>>>>>>>>>>\n")
