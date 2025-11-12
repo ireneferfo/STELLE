@@ -5,9 +5,9 @@
 # from .model.base_model import BaseConceptModel, ForwardWrapper
 # from .model.concept_model import ConceptBasedModel
 # from .model.model_utils import (
-#     compute_attention_jit,
+#     compute_concept_relevance_jit,
 #     concept_based_loss,
-#     compute_attention_collapse_regularization,
+#     compute_concept_relevance_collapse_regularization,
 #     compute_epsilon_control_regularization,
 #     ModelCheckpoint,
 #     TrainingMonitor,
@@ -21,9 +21,9 @@
 #     'ForwardWrapper',
     
 #     # Loss functions and utilities
-#     'compute_attention_jit',
+#     'compute_concept_relevance_jit',
 #     'concept_based_loss', 
-#     'compute_attention_collapse_regularization',
+#     'compute_concept_relevance_collapse_regularization',
 #     'compute_epsilon_control_regularization',
     
 #     # Training utilities

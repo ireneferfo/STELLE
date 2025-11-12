@@ -57,7 +57,7 @@ class ExperimentConfig:
     init_eps: float = 1
     activation_str: str = "relu"
     backprop_method: str = "ig"
-    init_attn: float = 1
+    init_crel: float = 1
     h: int = 256
     n_layers: int = 1
 
@@ -66,8 +66,8 @@ def main():
     args = parse_arguments()
     config = ExperimentConfig()
     device = setup_environment(config.seed)
-    base_path = "ablation_tests/results/concepts_nvarf_t/"
-    model_path = "ablation_tests/results/concepts_checkpoints/"
+    base_path = "tests/results/concepts_nvarf_t/"
+    model_path = "tests/results/concepts_checkpoints/"
     paths = setup_paths(base_path, model_path, args, args.dataset, config)
     os.makedirs(paths['results_dir'], exist_ok=True)
     os.makedirs(paths['model_path_og'], exist_ok=True)
@@ -89,8 +89,8 @@ def main():
             kernel, concepts_time = set_kernels_and_concepts(trainloader.dataset, paths['phis_path_og'], config_i)
 
             model_id = (
-                f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_attn}_{config_i.h}_"
-                f"{config_i.n_layers}_t{config_i.t}_{config_i.dim_concepts}_"
+                f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
+                f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{config_i.dim_concepts}_"
                 f"{config_i.creation_mode}_f{config_i.n_vars_formulae}"
             )
             # attach to model for later reference and debugging

@@ -8,7 +8,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, Dict, Any, List
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from .model_metrics import weighted_accuracy, sensitivity_specificity
 from ..explanations.local_explanation import LocalExplanation
@@ -765,7 +765,6 @@ class BaseConceptModel(nn.Module, ABC):
     # ========================================================================
     # Explanation methods
     # ========================================================================
-
 
     def get_explanations(
         self,

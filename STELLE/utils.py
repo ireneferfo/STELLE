@@ -69,7 +69,7 @@ def setup_paths(base_path:str, model_path:str,  args: argparse.Namespace, datana
         )
     
     # Setup model checkpoint path
-    if args.nocheckpoints:
+    if args.nocheckpoints or args.temp:
         model_path_og = tempfile.mkdtemp()
     else:
         model_path_og = (
