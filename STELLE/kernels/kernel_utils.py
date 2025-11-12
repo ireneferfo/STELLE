@@ -34,7 +34,7 @@ def set_kernels_and_concepts(
     
     # Generate and scale concepts
     formula_manager = FormulaManager(
-        n_vars, sampler, stlkernel, config.workers, config.t, n_vars_formulae, device=device
+        n_vars, sampler, stlkernel, config.pll, config.t, n_vars_formulae, device=device
     )
     
     concepts, rhos1, selfk1, total_time = formula_manager.get_formulae(

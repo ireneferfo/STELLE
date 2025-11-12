@@ -44,7 +44,7 @@ def get_dataset(
     
     # Create dataloaders
     trainloader, valloader, testloader = _create_dataloaders(
-        train_subset, val_subset, test_subset, config.bs, config.workers, config.seed)
+        train_subset, val_subset, test_subset, config.bs, config.pll, config.seed)
     
     return trainloader, testloader, valloader
 
