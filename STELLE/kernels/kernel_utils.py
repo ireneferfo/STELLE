@@ -84,7 +84,7 @@ def _validate_parameters(nvars, nvars_formulae, creation_mode):
 def _create_concepts_path(phis_path_og, creation_mode, nvars_formulae, nvars, t):
     """Create and return the path for storing concepts."""
     phis_path = (
-        f"{phis_path_og}{creation_mode}/{nvars_formulae}_fvars/" f"{nvars}_nvars/t_{t}/"
+        f"{phis_path_og}{creation_mode}/{nvars_formulae}_fvars/" f"{nvars}_nvars/t_{float(t)}/"
     )
     os.makedirs(phis_path, exist_ok=True)
     return phis_path

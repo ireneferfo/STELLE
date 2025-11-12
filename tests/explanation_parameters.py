@@ -17,6 +17,7 @@ from STELLE.utils import (
 
 # variazione t_k e imp_t_l
 
+
 @dataclass
 class ExperimentConfig:
     """Configuration for ablation experiments."""
@@ -41,7 +42,7 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize: bool = False
+    normalize_kernel: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True
@@ -55,7 +56,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
-    explanation_operation = 'mean'
+    explanation_operation = "mean"
 
     # Training parameters
     d: float = 0.1
@@ -104,24 +105,26 @@ def main():
 
     args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-    model, accuracy_results = train_test_model(args, arch_type='base')
+    model, accuracy_results = train_test_model(args, arch_type="base")
 
     for t_k in [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7]:
         for imp_t_l in [0, 0.001, 0.01, 0.1, 0.2]:
-            config_i = replace(
-                    config, t_k = t_k, imp_t_l=imp_t_l
-                )
-            expl_path = os.path.join(paths["model_path_og"], f"{model_id}_base_base_mean_{t_k}_{imp_t_l}.pt") # base arch_type and expl_type
-            
+            config_i = replace(config, t_k=t_k, imp_t_l=imp_t_l)
+            expl_path = os.path.join(
+                paths["model_path_og"], f"{model_id}_base_base_mean_{t_k}_{imp_t_l}.pt"
+            )  # base arch_type and expl_type
+
             args_explanations = (expl_path, trainloader, testloader, model, config_i)
 
             local_metrics, global_metrics = compute_explanations(args_explanations)
 
-            result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
+            result_raw = merge_result_dicts(
+                [accuracy_results, local_metrics, global_metrics]
+            )
 
             result = {
-                't_k': t_k,
-                'imp_t_l':imp_t_l,
+                "t_k": t_k,
+                "imp_t_l": imp_t_l,
                 **result_raw,
             }
 

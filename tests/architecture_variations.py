@@ -40,7 +40,7 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize: bool = False
+    normalize_kernel: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True

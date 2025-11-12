@@ -40,7 +40,7 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize: bool = False
+    normalize_kernel: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True
@@ -54,7 +54,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
-    explanation_operation = 'mean'
+    explanation_operation = "mean"
 
     # Training parameters
     d: float = 0.1
@@ -103,23 +103,27 @@ def main():
 
     args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-    model, accuracy_results = train_test_model(args, arch_type='base')
+    model, accuracy_results = train_test_model(args, arch_type="base")
 
-    for explanation_operation in [None, 'max', 'mean']:
-        config_i = replace(
-                config, explanation_operation = explanation_operation
-            )
-        expl_path = os.path.join(paths["model_path_og"], f"{model_id}_base_base_{explanation_operation}_{config.t_k}_{config.imp_t_l}.pt") # base arch_type and expl_type
-        
+    for explanation_operation in [None, "max", "mean"]:
+        config_i = replace(config, explanation_operation=explanation_operation)
+        expl_path = os.path.join(
+            paths["model_path_og"],
+            f"{model_id}_base_base_{explanation_operation}_{config.t_k}_{config.imp_t_l}.pt",
+        )  # base arch_type and expl_type
+
         args_explanations = (expl_path, trainloader, testloader, model, config_i)
 
-        local_metrics, global_metrics = compute_explanations(args_explanations, explanation_operation = explanation_operation)
+        local_metrics, global_metrics = compute_explanations(
+            args_explanations, explanation_operation=explanation_operation
+        )
 
-        result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
+        result_raw = merge_result_dicts(
+            [accuracy_results, local_metrics, global_metrics]
+        )
 
         result = {
-            'explanation_operation': explanation_operation
-            **result_raw,
+            "explanation_operation": explanation_operation**result_raw,
         }
 
         result = flatten_dict(result)

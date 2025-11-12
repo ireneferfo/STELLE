@@ -20,7 +20,7 @@ from STELLE.utils import (
     merge_result_dicts,
 )
 
-#! da finire
+#! LEGACY
 
 
 @dataclass

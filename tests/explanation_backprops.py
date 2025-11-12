@@ -17,6 +17,7 @@ from STELLE.utils import (
 
 # diversi metodi di backpropagation (OK)
 
+
 @dataclass
 class ExperimentConfig:
     """Configuration for ablation experiments."""
@@ -41,7 +42,7 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize: bool = False
+    normalize_kernel: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True
@@ -103,22 +104,27 @@ def main():
 
     args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-    model, accuracy_results = train_test_model(args, arch_type='base')
+    model, accuracy_results = train_test_model(args, arch_type="base")
 
-    for method in ['ig', 'deeplift', 'nobackprop', 'random', 'identity']:
-        expl_path = os.path.join(paths["model_path_og"], f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt") # base expl_type
-        
-        config_i = replace(
-                config, backprop_method = method
-            )
+    for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
+        expl_path = os.path.join(
+            paths["model_path_og"],
+            f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
+        )  # base expl_type
+
+        config_i = replace(config, backprop_method=method)
         args_explanations = (expl_path, trainloader, testloader, model, config_i)
 
-        local_metrics, global_metrics = compute_explanations(args_explanations, method = method)
+        local_metrics, global_metrics = compute_explanations(
+            args_explanations, method=method
+        )
 
-        result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
+        result_raw = merge_result_dicts(
+            [accuracy_results, local_metrics, global_metrics]
+        )
 
         result = {
-            'backprop_method': method,
+            "backprop_method": method,
             "concepts_time": concepts_time,
             **result_raw,
         }

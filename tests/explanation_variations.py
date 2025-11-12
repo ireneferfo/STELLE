@@ -17,6 +17,7 @@ from STELLE.utils import (
 
 # matrice usata per estrarre explanation (OK)
 
+
 @dataclass
 class ExperimentConfig:
     """Configuration for ablation experiments."""
@@ -41,7 +42,7 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize: bool = False
+    normalize_kernel: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True
@@ -103,16 +104,23 @@ def main():
 
     args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-    model, accuracy_results = train_test_model(args, arch_type='base')
+    model, accuracy_results = train_test_model(args, arch_type="base")
 
-    for expl_type in ['crel', 'lw', 'crel_gx', 'gx_lw', 'crel_lw', 'base']:
-        expl_path = os.path.join(paths["model_path_og"], f"{model_id}_base_{expl_type}_mean_{config.t_k}_{config.imp_t_l}.pt") # base arch_type
-        
+    for expl_type in ["crel", "lw", "crel_gx", "gx_lw", "crel_lw", "base"]:
+        expl_path = os.path.join(
+            paths["model_path_og"],
+            f"{model_id}_base_{expl_type}_mean_{config.t_k}_{config.imp_t_l}.pt",
+        )  # base arch_type
+
         args_explanations = (expl_path, trainloader, testloader, model, config)
 
-        local_metrics, global_metrics = compute_explanations(args_explanations, expl_type=expl_type)
+        local_metrics, global_metrics = compute_explanations(
+            args_explanations, expl_type=expl_type
+        )
 
-        result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
+        result_raw = merge_result_dicts(
+            [accuracy_results, local_metrics, global_metrics]
+        )
 
         result = {
             "expl_type": expl_type,
