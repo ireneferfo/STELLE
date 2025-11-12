@@ -211,20 +211,19 @@ class BaseConceptModel(nn.Module, ABC):
         temb = self._compute_temporal_embeddings(x, trainingmode)
 
         # Compute concept_relevance (variant-specific)
-        concept_relevance = self._compute_concept_relevance(temb)
+        concept_relevance = self._compute_concept_relevance(temb) # (batch, phis)
 
         # Apply dropout
         concept_relevance_dropped = self.dropout(concept_relevance)
 
         # Compute G_phis based on robustness values
-        G_phis = self._compute_G_phis_matrix(x, concept_relevance, trainingmode)
+        G_phis = self._compute_G_phis_matrix(x, concept_relevance, trainingmode) # (batch, phis, classes)
         # Compute concept_relevance-weighted features
         crelG_raw = self._compute_weighted_features(concept_relevance_dropped, G_phis)
 
         # Apply output activation and classify
-        crelG = self.output_activation(crelG_raw).to(self.device)
+        crelG = self.output_activation(crelG_raw).to(self.device) # (batch, phis * classes)
         class_scores = self.classifier(crelG.float().to(self.device))
-
         if trainingmode:
             return class_scores
         return class_scores, concept_relevance, crelG_raw, G_phis
@@ -791,7 +790,7 @@ class BaseConceptModel(nn.Module, ABC):
             getmatrix: Whether to return attribution matrix
             k: Number of top concepts (None for adaptive)
             t_k: Cumulative score threshold
-            method: Attribution method ('ig', 'deeplift', 'og', 'random', 'identity')
+            method: Attribution method ('ig', 'deeplift', 'nobackprop', 'random', 'identity')
             filter_onlycorrect: Only explain correct predictions
             op: Comparison operation ('mean', 'max', or None)
             norm: Whether to normalize attribution scores
@@ -819,7 +818,8 @@ class BaseConceptModel(nn.Module, ABC):
 
         attribution_weights = self._compute_attributions(
             x_requires_grad, targets, layer, method
-        )
+        ) # (batch, phis * classes)
+
         # Compute final attribution matrix
         final_matrix = self._compute_final_attributions(
             crelGs, attribution_weights, y_pred
@@ -890,8 +890,7 @@ class BaseConceptModel(nn.Module, ABC):
         self, x: torch.Tensor, targets: torch.Tensor, layer, method: str
     ) -> torch.Tensor:
         """Compute gradient-based attributions (DeepLift or Integrated Gradients)."""
-        from captum.attr import LayerDeepLift, LayerIntegratedGradients
-
+        
         class ForwardWrapper(nn.Module):
             def __init__(self, model):
                 super().__init__()
@@ -904,8 +903,10 @@ class BaseConceptModel(nn.Module, ABC):
         wrapper_model = ForwardWrapper(self)
 
         if method == "deeplift":
+            from captum.attr import LayerDeepLift
             attributor = LayerDeepLift(wrapper_model, layer)
         else:  # 'ig'
+            from captum.attr import LayerIntegratedGradients
             attributor = LayerIntegratedGradients(wrapper_model, layer)
 
         baseline = torch.zeros_like(x[:1]).to(self.device)
