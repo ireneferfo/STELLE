@@ -31,7 +31,11 @@ def setup_environment(seed: int) -> torch.device:
 
     return device
 
-
+def seed_worker(worker_id):
+    worker_seed = 0
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+        
 def merge_result_dicts(dicts: list):
     result_raw = {}
     # merge dictionaries; later ones override earlier keys on conflict

@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from ..data.data_generation import load_data_with_difficulty
 from .base_dataset import TrajectoryDataset
 from .dataset_utils import remove_redundant_variables, convert_labels_to_numeric
+from ..utils import seed_worker
 
 
 def get_dataset(
@@ -153,7 +154,7 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
         batch_size=bs,
         shuffle=True,
         num_workers=workers,
-        worker_init_fn=seed,
+        worker_init_fn=seed_worker,
         generator=g,
     )
     
@@ -162,7 +163,7 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
         batch_size=bs * 2,
         shuffle=False,
         num_workers=workers,
-        worker_init_fn=seed,
+        worker_init_fn=seed_worker,
         generator=g,
     )
     
@@ -171,7 +172,7 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
         batch_size=bs * 2,
         shuffle=False,
         num_workers=workers,
-        worker_init_fn=seed,
+        worker_init_fn=seed_worker,
         generator=g,
     )
     
