@@ -38,6 +38,7 @@ def compute_explanations(args, globals = False, **kwargs):
             try:
                 with open(explpath, "rb") as f:
                     local_explanations, local_explanations_time = pickle.load(f)
+                local_explanations_true_pred.append(local_explanations)
                 compute = False
                 print(f'Loaded local explanations ({i}) from {explpath}')
             except Exception as e:
