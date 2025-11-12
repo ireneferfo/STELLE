@@ -22,7 +22,7 @@ from STELLE.explanations.explanation_metrics import (
 )
 
 
-def compute_explanations(args):
+def compute_explanations(args, globals = False, **kwargs):
     (model_path_ev, trainloader, testloader, model, config) = args
     device = model.device
     explanation_layer = model.output_activation.to(device)
@@ -44,14 +44,14 @@ def compute_explanations(args):
         
         if compute:
             start_time = time()
-
             local_explanations = model.get_explanations(
                 x=testloader.dataset.trajectories,
                 y_true=testloader.dataset.labels if i == "true" else None,
                 trajbyclass=trajbyclass,
                 layer=explanation_layer,
                 t_k=config.t_k,
-                method=config.backprop_method,
+                method = kwargs.get('method', 'ig'),
+                op = kwargs.get('explanation_operation', 'mean')
             )
             for e in local_explanations:
                 e.generate_explanation(
@@ -67,31 +67,36 @@ def compute_explanations(args):
     local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
 
     # global
-    print('Getting global explanations...')
-    globpath = model_path_ev[:-3] + "_global_explanations.pickle"
-    compute = True
-    if os.path.exists(globpath):
-        try:
-            with open(globpath, "rb") as f:
-                global_explanations, global_explanations_time = pickle.read(f)
-            compute = False
-            print(f'Loaded global explanations from {globpath}')
-        except Exception as e:
-            print(f"Failed to load existing global explanations ({e}).")
-    
-    if compute:
-        start_time = time()
+    if globals:
+        print('Getting global explanations...')
+        globpath = model_path_ev[:-3] + "_global_explanations.pickle"
+        compute = True
+        if os.path.exists(globpath):
+            try:
+                with open(globpath, "rb") as f:
+                    global_explanations, global_explanations_time = pickle.read(f)
+                compute = False
+                print(f'Loaded global explanations from {globpath}')
+            except Exception as e:
+                print(f"Failed to load existing global explanations ({e}).")
+        
+        if compute:
+            start_time = time()
 
-        global_explanations = get_training_explanations(
-            model, trainloader, explanation_layer, config.backprop_method, config.imp_t_l, config.imp_t_g, config.t_k
-        )
-        global_explanations_time = time() - start_time
-        with open(globpath, "wb") as f:
-            pickle.dump((global_explanations, global_explanations_time), f)
-        print(f"Saved global explanations to {globpath}")
+            global_explanations = get_training_explanations(
+                model, trainloader, 
+                explanation_layer, kwargs.get('method', 'ig'), 
+                config.imp_t_l, config.imp_t_g, config.t_k, 
+                explanation_operation = kwargs.get('explanation_operation', 'mean')
+            )
+            global_explanations_time = time() - start_time
+            with open(globpath, "wb") as f:
+                pickle.dump((global_explanations, global_explanations_time), f)
+            print(f"Saved global explanations to {globpath}")
 
-    global_metrics = get_global_metrics(global_explanations)
-
+        global_metrics = get_global_metrics(global_explanations)
+    else:
+        global_metrics = {}
     del model
     return local_metrics, global_metrics
 

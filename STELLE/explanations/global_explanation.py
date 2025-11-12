@@ -1146,6 +1146,7 @@ def get_training_explanations(
     trainloader,
     explanation_layer,
     backprop_method,
+    explanation_operation = 'mean',
     imp_t_l=0.01,
     imp_t_g=0.01,
     t_k=0.95,
@@ -1159,7 +1160,8 @@ def get_training_explanations(
             layer=explanation_layer,
             t_k=t_k,
             method=backprop_method,
-            k=k
+            k=k,
+            op = explanation_operation
             )
     if len(training_local_explanations) > 0:
         for e in training_local_explanations:
