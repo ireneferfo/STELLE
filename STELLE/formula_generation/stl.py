@@ -27,22 +27,22 @@ realnum = Union[float, int]
 # TODO: automatic check of timespan when evaluating robustness? (should be done only at root node)
 
 # Environment variable for MPS (Metal Performance Shaders) fallback on macOS
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK']='1'
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 
 def eventually(x: Tensor, time_span: int) -> Tensor:
     """
     STL operator 'eventually' in 1D using max pooling.
-    
+
     Computes the maximum value over a sliding window of size time_span,
     which corresponds to the eventually operator in STL semantics.
-    
+
     Note: Currently requires time_span to be an integer (working with discrete steps).
-    
+
     Args:
         x: Input signal tensor of shape (batch_size, channels, time_steps)
         time_span: Size of the sliding window (must be integer)
-        
+
     Returns:
         Tensor: Result of applying eventually operator along time dimension
     """
@@ -59,7 +59,7 @@ def eventually(x: Tensor, time_span: int) -> Tensor:
 class Node:
     """
     Abstract base class for all STL formula nodes.
-    
+
     This class defines the interface for all STL nodes and provides
     common functionality for evaluating both boolean and quantitative semantics.
     """
@@ -75,12 +75,12 @@ class Node:
     def boolean(self, x: Tensor, evaluate_at_all_times: bool = False) -> Tensor:
         """
         Evaluate the boolean semantics of this STL formula.
-        
+
         Args:
-            x: Input signals tensor of shape (N_samples, N_vars, N_sampling_points)
+            x: Input signals tensor of shape (N_samples, nvars, N_sampling_points)
             evaluate_at_all_times: If True, returns semantics for all time points;
                                  if False, returns only at time t=0
-                                 
+
         Returns:
             Boolean semantics tensor
         """
@@ -99,24 +99,24 @@ class Node:
     ) -> Tensor:
         """
         Evaluate the quantitative (robustness) semantics of this STL formula.
-        
+
         Args:
-            x: Input signals tensor of shape (N_samples, N_vars, N_sampling_points)
+            x: Input signals tensor of shape (N_samples, nvars, N_sampling_points)
             evaluate_at_all_times: If True, returns semantics for all time points;
                                  if False, returns only at time t=0
             vectorize: If True, returns robustness for all variables;
                       if False, returns aggregated robustness
             normalize: If True, normalizes robustness values (experimental)
-                      
+
         Returns:
             Quantitative robustness semantics tensor
         """
         # Ensure appropriate precision for different hardware
-        if torch.backends.mps.is_available(): 
+        if torch.backends.mps.is_available():
             x = x.float()
-        else: 
+        else:
             x = x.double()
-            
+
         z: Tensor = self._quantitative(x, vectorize, normalize)
         if evaluate_at_all_times:
             return z
@@ -126,7 +126,7 @@ class Node:
     def set_normalizing_flag(self, value: bool = True) -> None:
         """
         Set normalization flag for robustness values.
-        
+
         Currently not fully implemented/used.
         """
         pass
@@ -134,7 +134,7 @@ class Node:
     def time_depth(self) -> int:
         """
         Calculate the time depth of bounded temporal operators.
-        
+
         Returns:
             Maximum time depth needed to evaluate this formula
         """
@@ -154,27 +154,27 @@ class Node:
     def _extract_semantics_at_time_zero(x: Tensor) -> Tensor:
         """
         Extract semantics values at time zero.
-        
+
         Args:
             x: Semantics tensor of shape (batch_size, channels, time_steps)
-            
+
         Returns:
             Tensor of shape (batch_size, channels) with values at time zero
         """
         return x[:, :, 0]
-    
+
 
 class Boolean(Node):
     """
     Node representing a constant boolean value (True or False).
-    
+
     This is useful for creating constant STL formulae.
     """
 
     def __init__(self, value: bool):
         """
         Initialize boolean node.
-        
+
         Args:
             value: The boolean value (True or False)
         """
@@ -202,13 +202,13 @@ class Boolean(Node):
     ) -> Tensor:
         """
         Return quantitative semantics for boolean constant.
-        
+
         For True: returns +infinity (maximally satisfied)
         For False: returns -infinity (maximally violated)
         """
         # Create tensor with appropriate shape
         shape = (x.shape[0], 1, x.shape[2]) if not vectorize else x.shape
-        
+
         # Use infinity values to represent maximal satisfaction/violation
         robustness = torch.full(
             shape, float("inf") if self.value else float("-inf"), device=x.device
@@ -224,7 +224,7 @@ class Boolean(Node):
 class Atom(Node):
     """
     Atomic formula node representing variable comparisons.
-    
+
     Represents formulae of the form: x_i <= threshold or x_i >= threshold
     where x_i is a signal variable and threshold is a real number.
     """
@@ -232,7 +232,7 @@ class Atom(Node):
     def __init__(self, var_index: int, threshold: realnum, lte: bool = False) -> None:
         """
         Initialize atomic formula.
-        
+
         Args:
             var_index: Index of the variable to compare
             threshold: Comparison threshold value
@@ -260,17 +260,17 @@ class Atom(Node):
     def _boolean(self, x: Tensor) -> Tensor:
         """
         Evaluate boolean semantics for atomic formula.
-        
+
         Args:
             x: Input signal tensor
-            
+
         Returns:
             Boolean tensor indicating where the condition holds
         """
         # Extract the specific variable we're interested in
         xj: Tensor = x[:, self.var_index, :]
         xj: Tensor = xj.view(xj.size()[0], 1, -1)  # Reshape for consistency
-        
+
         # Apply the comparison operator
         z: Tensor = (
             torch.le(xj, self.threshold) if self.lte else torch.ge(xj, self.threshold)
@@ -282,11 +282,11 @@ class Atom(Node):
     ) -> Tensor:
         """
         Evaluate quantitative semantics for atomic formula.
-        
+
         The robustness is defined as:
           For x <= c: robustness = c - x
           For x >= c: robustness = x - c
-          
+
         Positive values indicate satisfaction, negative values indicate violation.
         """
         # Extract the specific variable
@@ -299,7 +299,7 @@ class Atom(Node):
         if self.lte:
             zj: Tensor = -xj + self.threshold  # c - x for x <= c
         else:
-            zj: Tensor = xj - self.threshold   # x - c for x >= c
+            zj: Tensor = xj - self.threshold  # x - c for x >= c
         del xj  # Free memory
 
         # Experimental normalization (currently commented out)
@@ -530,11 +530,11 @@ class Globally(Node):
             try:
                 z: Tensor = torch.ge(
                     1.0
-                    - eventually(
-                        (~z1), self.right_time_bound - self.left_time_bound
-                    ),
-                    0.5,)
-            except: print('boolean eventually problem in: ', self)
+                    - eventually((~z1), self.right_time_bound - self.left_time_bound),
+                    0.5,
+                )
+            except:
+                print("boolean eventually problem in: ", self)
         del z1
         return z.cpu()
 
@@ -557,8 +557,12 @@ class Globally(Node):
                 _: Tensor
                 z, _ = torch.min(z1, 2, keepdim=True)
         else:
-            try: z: Tensor = -eventually(-z1, self.right_time_bound - self.left_time_bound)
-            except: print('quantitative eventually problem in: ', self)
+            try:
+                z: Tensor = -eventually(
+                    -z1, self.right_time_bound - self.left_time_bound
+                )
+            except:
+                print("quantitative eventually problem in: ", self)
 
         del z1
         return z.cpu()
@@ -631,10 +635,10 @@ class Eventually(Node):
             # )
             try:
                 z = eventually(z1, self.right_time_bound - self.left_time_bound)
-                z = z >= 0.5   # back to bool
-            except Exception as e: 
-                print('\nboolean eventually problem in: ', self)
-                print(f'{x.shape=}, {z1.shape=}')
+                z = z >= 0.5  # back to bool
+            except Exception as e:
+                print("\nboolean eventually problem in: ", self)
+                print(f"{x.shape=}, {z1.shape=}")
                 print(e)
         del z1
         return z.cpu()
@@ -657,10 +661,11 @@ class Eventually(Node):
                 _: Tensor
                 z, _ = torch.max(z1, 2, keepdim=True)
         else:
-            try: z: Tensor = eventually(z1, self.right_time_bound - self.left_time_bound)
-            except Exception as e: 
-                print('\nquantitative eventually problem in: ', self)
-                print(f'{x.shape=}, {z1.shape=}')
+            try:
+                z: Tensor = eventually(z1, self.right_time_bound - self.left_time_bound)
+            except Exception as e:
+                print("\nquantitative eventually problem in: ", self)
+                print(f"{x.shape=}, {z1.shape=}")
                 print(e)
 
         del z1
@@ -872,31 +877,31 @@ class Until(Node):
 
         elif self.right_unbound:
             timed_until: Node = And(
-                    Globally(
-                        self.left_child,
-                        left_time_bound=0,
-                        right_time_bound=self.left_time_bound,
+                Globally(
+                    self.left_child,
+                    left_time_bound=0,
+                    right_time_bound=self.left_time_bound,
+                ),
+                And(
+                    Eventually(
+                        self.right_child,
+                        left_time_bound=self.left_time_bound,
+                        right_unbound=True,
                     ),
-                    And(
-                        Eventually(
-                            self.right_child,
-                            left_time_bound=self.left_time_bound,
-                            right_unbound=True,
-                        ),
-                        Eventually(
-                            Until(self.left_child, self.right_child, unbound=True),
-                            left_time_bound=self.left_time_bound,
-                            right_unbound=True,
-                        ),
+                    Eventually(
+                        Until(self.left_child, self.right_child, unbound=True),
+                        left_time_bound=self.left_time_bound,
+                        right_unbound=True,
                     ),
-                )
+                ),
+            )
             z: Tensor = timed_until._quantitative(
                 x, vectorize=vectorize, normalize=normalize
             )
         else:
             if self.left_time_bound == 0:
                 timed_until: Node = And(
-                        self.left_child,
+                    self.left_child,
                     And(
                         Eventually(
                             self.right_child,
@@ -912,24 +917,24 @@ class Until(Node):
                 )
             else:
                 timed_until: Node = And(
-                        Globally(
-                            self.left_child,
-                            left_time_bound=0,
-                            right_time_bound=self.left_time_bound,
+                    Globally(
+                        self.left_child,
+                        left_time_bound=0,
+                        right_time_bound=self.left_time_bound,
+                    ),
+                    And(
+                        Eventually(
+                            self.right_child,
+                            left_time_bound=self.left_time_bound,
+                            right_time_bound=self.right_time_bound,  # - 1,
                         ),
-                        And(
-                            Eventually(
-                                self.right_child,
-                                left_time_bound=self.left_time_bound,
-                                right_time_bound=self.right_time_bound,  # - 1,
-                            ),
-                            Eventually(
-                                Until(self.left_child, self.right_child, unbound=True),
-                                left_time_bound=self.left_time_bound,
-                                right_unbound=True,
-                            ),
+                        Eventually(
+                            Until(self.left_child, self.right_child, unbound=True),
+                            left_time_bound=self.left_time_bound,
+                            right_unbound=True,
                         ),
-                    )
+                    ),
+                )
             z: Tensor = timed_until._quantitative(
                 x, vectorize=vectorize, normalize=normalize
             )

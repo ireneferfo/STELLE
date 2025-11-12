@@ -29,7 +29,7 @@ class FormulaManager:
 
     def __init__(
         self,
-        n_vars: int,
+        nvars: int,
         sampler: STLFormulaGenerator,
         stl_kernel: StlKernel,
         parallel_workers: int,
@@ -42,12 +42,12 @@ class FormulaManager:
         Initialize the formula manager.
 
         Args:
-            n_vars: Total number of variables in the system
+            nvars: Total number of variables in the system
             nvars_formulae: Maximum variables per formula
             points: Number of time points in signals
             device: Computation device (auto-detected if None)
         """
-        self.n_vars = n_vars
+        self.nvars = nvars
         self.nvars_formulae = nvars_formulae
         self.points = points
         self.sampler = sampler
@@ -76,7 +76,7 @@ class FormulaManager:
             )
         elif creation_mode == 1:
             if formulae_per_var is None:
-                formulae_per_var = count // self.n_vars
+                formulae_per_var = count // self.nvars
             return self._get_formulae_per_variable(
                 formulae_per_var,
                 min_total,
@@ -144,7 +144,9 @@ class FormulaManager:
                     batch_size,
                 )
         else:
-            print(f"Didn't find any exisiting formulae at {formulae_file}. Generating them.")
+            print(
+                f"Didn't find any exisiting formulae at {formulae_file}. Generating them."
+            )
             return self._generate_new_formulae(
                 target_count,
                 creation_mode,
@@ -165,9 +167,9 @@ class FormulaManager:
     ) -> Tuple[List, torch.Tensor, torch.Tensor, float]:
         """Get formulae with per-variable distribution."""
         # Collapse to shared mode if only one variable
-        creation_mode = 0 if self.n_vars == 1 else 1
+        creation_mode = 0 if self.nvars == 1 else 1
 
-        target_count = max(min_total, formulae_per_var * self.n_vars)
+        target_count = max(min_total, formulae_per_var * self.nvars)
 
         return self._get_formulae(
             target_count=target_count,
@@ -362,7 +364,7 @@ class FormulaManager:
     ) -> List:
         """Generate formulae with variable permutation."""
         """
-        Generate new formulae with variable permutation (creation_nvars=1 case), with n_vars_formulae variables per formula (max).
+        Generate new formulae with variable permutation (creation_nvars=1 case), with nvars_formulae variables per formula (max).
         Handles partial groups of variable permutations.
         """
         # Step 1: Group formulae by their template (variable-agnostic pattern)
@@ -382,13 +384,13 @@ class FormulaManager:
                 break
             # Calculate how many unique variables are in this template
             num_vars_in_template = len(get_unique_variables(str(formulae[0])))
-            total_perms = self.n_vars**num_vars_in_template
+            total_perms = self.nvars**num_vars_in_template
             # If we haven't generated all permutations for this template
             if len(formulae) < total_perms:
                 formulae_strings = [str(f) for f in formulae]
                 # Generate all possible permutations
                 # take formula, not template, so that var idxs relations are preserved
-                all_perms = compute_permutations(formulae[:1], self.n_vars)
+                all_perms = compute_permutations(formulae[:1], self.nvars)
                 # Find the missing permutations
                 missing_perms = [p for p in all_perms if str(p) not in formulae_strings]
 
@@ -409,7 +411,7 @@ class FormulaManager:
             if template_map != {}:
                 for template, formulae in template_map.items():
                     num_vars_in_template = len(get_unique_variables(template))
-                    total_perms = self.n_vars**num_vars_in_template
+                    total_perms = self.nvars**num_vars_in_template
                     # Only take formulae from complete groups
                     if len(formulae) >= total_perms:
                         formulae_strings = [str(f) for f in formulae]
@@ -423,7 +425,7 @@ class FormulaManager:
 
         # Step 3: If we still need more formulae, create new templates
         generator = ConceptGenerator(
-            n_vars=self.n_vars,
+            nvars=self.nvars,
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,
@@ -448,14 +450,14 @@ class FormulaManager:
                 seed=seed + len(existing_formulae_0) + remaining,
             )
 
-            # groups_needed = (remaining // self.n_vars) + (1 if remaining % self.n_vars else 0)
+            # groups_needed = (remaining // self.nvars) + (1 if remaining % self.nvars else 0)
             # print(len(existing_formulae_0))
             # print(len(existing_rhos_0[0]))
             # base_formula = concept_generation(
             #     formulae_type,
             #     dim=1 if t == 1 else len(existing_formulae_0) + 1,
-            #     n_vars=n_vars_formulae,  # Will be permuted across variables
-            #     n_vars_formulae=n_vars_formulae,
+            #     nvars=nvars_formulae,  # Will be permuted across variables
+            #     nvars_formulae=nvars_formulae,
             #     pro_simple=True,
             #     path=phis_file_path,
             #     cosine_similarity_threshold=t,
@@ -479,7 +481,7 @@ class FormulaManager:
                 base_formula = base_formula[len(existing_formulae_0) :]
 
             existing_formulae_0.extend(base_formula)
-            perms = compute_permutations(base_formula, self.n_vars)
+            perms = compute_permutations(base_formula, self.nvars)
             new_formulae.extend(perms)
             remaining -= len(perms)
 
@@ -494,7 +496,7 @@ class FormulaManager:
     ) -> List:
         """Generate formulae without diversity filtering."""
         generator = ConceptGenerator(
-            n_vars=self.n_vars,
+            nvars=self.nvars,
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,
@@ -519,7 +521,7 @@ class FormulaManager:
     ) -> Tuple[List, torch.Tensor]:
         """Generate formulae with diversity filtering."""
         generator = ConceptGenerator(
-            n_vars=self.n_vars,
+            nvars=self.nvars,
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,

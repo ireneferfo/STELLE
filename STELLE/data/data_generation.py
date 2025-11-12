@@ -20,42 +20,37 @@ from dataclasses import dataclass
 
 def generate_synthetic_trajectories(
     num_trajs: int,
-    n_vars: int,
+    nvars: int,
     points: int,
     num_classes: int,
     seed: int = 0,
     # Classification difficulty controls
     class_separation: float = 1.0,  # Higher = easier to classify (0.5-2.0 recommended)
     inter_class_variance: float = 0.3,  # Variance within class (0.1-0.5 recommended)
-    
     # Noise controls
     temporal_noise_std: float = 0.2,  # Gaussian noise on time series
     fourier_noise_std: float = 0.0,  # Noise added in frequency domain
-    
     # Signal characteristics
     base_frequencies: Optional[list] = None,  # Base frequencies per class [f1, f2, ...]
     frequency_variation: float = 0.2,  # Random variation in frequencies
     periodicity_strength: float = 1.0,  # 0=weak periodic, 1=strong periodic
-    
     # Additional controls
     drift_strength: float = 0.05,  # Linear drift magnitude
     outlier_prob: float = 0.0,  # Probability of outlier trajectories
     phase_coherence: float = 0.5,  # Phase relationship between variables (0-1)
-    
     # Advanced options
     use_harmonics: bool = True,  # Add harmonic frequencies
     n_harmonics: int = 2,  # Number of harmonics to include
-    trend_type: str = 'linear',  # 'linear', 'quadratic', 'exponential', 'none'
-    
+    trend_type: str = "linear",  # 'linear', 'quadratic', 'exponential', 'none'
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate highly controllable synthetic multivariate trajectories.
-    
+
     Parameters
     ----------
     num_trajs : int
         Number of trajectories (samples)
-    n_vars : int
+    nvars : int
         Number of variables (channels) per trajectory
     points : int
         Number of time points per trajectory
@@ -91,67 +86,67 @@ def generate_synthetic_trajectories(
         Number of harmonics to add
     trend_type : str
         Type of trend: 'linear', 'quadratic', 'exponential', 'none'
-    
+
     Returns
     -------
     X : np.ndarray
-        Trajectory data of shape (num_trajs, n_vars, points)
+        Trajectory data of shape (num_trajs, nvars, points)
     y : np.ndarray
         Class labels of shape (num_trajs,)
     """
     # Set seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
-    
+
     # Initialize
-    X = torch.zeros((num_trajs, n_vars, points), dtype=torch.float32)
+    X = torch.zeros((num_trajs, nvars, points), dtype=torch.float32)
     y = torch.randint(0, num_classes, (num_trajs,), dtype=torch.long)
     t = torch.linspace(0.0, 1.0, points)
-    
+
     # Generate base frequencies for each class if not provided
     if base_frequencies is None:
         base_frequencies = [2.0 + i * 1.5 for i in range(num_classes)]
-    
+
     # Generate class-specific parameters
     class_params = {}
     for cls in range(num_classes):
         class_params[cls] = {
-            'base_freq': base_frequencies[cls % len(base_frequencies)],
-            'amplitude': 1.0 + class_separation * cls * 0.3,
-            'phase_offset': 2 * np.pi * cls / num_classes,
-            'shape_param': cls / max(1, num_classes - 1),  # 0 to 1
+            "base_freq": base_frequencies[cls % len(base_frequencies)],
+            "amplitude": 1.0 + class_separation * cls * 0.3,
+            "phase_offset": 2 * np.pi * cls / num_classes,
+            "shape_param": cls / max(1, num_classes - 1),  # 0 to 1
         }
-    
+
     for i in range(num_trajs):
         cls = int(y[i].item())
         is_outlier = np.random.rand() < outlier_prob
-        
+
         # Get class-specific parameters with within-class variation
         params = class_params[cls]
-        freq = params['base_freq'] * (1 + inter_class_variance * np.random.randn())
-        amp = params['amplitude'] * (1 + inter_class_variance * np.random.randn())
-        phase_base = params['phase_offset']
-        
+        freq = params["base_freq"] * (1 + inter_class_variance * np.random.randn())
+        amp = params["amplitude"] * (1 + inter_class_variance * np.random.randn())
+        phase_base = params["phase_offset"]
+
         # Apply frequency variation
-        freq *= (1 + frequency_variation * np.random.randn())
-        
-        for v in range(n_vars):
+        freq *= 1 + frequency_variation * np.random.randn()
+
+        for v in range(nvars):
             # Variable-specific frequency modulation
-            var_freq = freq * (1 + 0.1 * v / max(1, n_vars))
-            
+            var_freq = freq * (1 + 0.1 * v / max(1, nvars))
+
             # Phase: coherent across variables or random
             if phase_coherence > np.random.rand():
                 phase = phase_base + 0.2 * v  # Coherent
             else:
                 phase = 2 * np.pi * np.random.rand()  # Random
-            
+
             # === Build base signal ===
             base = torch.zeros(points)
-            
+
             # Primary periodic component
             primary = amp * torch.sin(2 * torch.pi * var_freq * t + phase)
             base += periodicity_strength * primary
-            
+
             # Add harmonics
             if use_harmonics:
                 for h in range(2, n_harmonics + 2):
@@ -160,70 +155,71 @@ def generate_synthetic_trajectories(
                         2 * torch.pi * var_freq * h * t + phase * h
                     )
                     base += periodicity_strength * harmonic * 0.5
-            
+
             # Add non-periodic component (reduces pure periodicity)
             if periodicity_strength < 1.0:
                 non_periodic_weight = 1.0 - periodicity_strength
                 # Use different patterns based on class
-                if params['shape_param'] < 0.33:
+                if params["shape_param"] < 0.33:
                     non_periodic = torch.exp(-((t - 0.5) ** 2) / 0.1)
-                elif params['shape_param'] < 0.67:
+                elif params["shape_param"] < 0.67:
                     non_periodic = torch.abs(torch.sin(5 * torch.pi * t))
                 else:
                     non_periodic = t * (1 - t) * 4
                 base += non_periodic_weight * amp * non_periodic
-            
+
             # === Add trend/drift ===
-            if trend_type == 'linear':
+            if trend_type == "linear":
                 trend = drift_strength * v * (cls + 1) * t
-            elif trend_type == 'quadratic':
-                trend = drift_strength * v * (cls + 1) * (t ** 2)
-            elif trend_type == 'exponential':
+            elif trend_type == "quadratic":
+                trend = drift_strength * v * (cls + 1) * (t**2)
+            elif trend_type == "exponential":
                 trend = drift_strength * v * (cls + 1) * (torch.exp(t) - 1)
             else:  # 'none'
                 trend = torch.zeros(points)
-            
+
             base += trend
-            
+
             # === Add temporal noise ===
             temporal_noise = temporal_noise_std * torch.randn(points)
-            
+
             # === Add Fourier domain noise ===
             if fourier_noise_std > 0:
                 # Transform to frequency domain
                 fft_signal = torch.fft.rfft(base)
-                
+
                 # Add complex noise in frequency domain
                 noise_real = fourier_noise_std * torch.randn(fft_signal.shape)
                 noise_imag = fourier_noise_std * torch.randn(fft_signal.shape)
                 fourier_noise = torch.complex(noise_real, noise_imag)
-                
+
                 fft_signal = fft_signal + fourier_noise
-                
+
                 # Transform back
                 base = torch.fft.irfft(fft_signal, n=points)
-            
+
             # === Handle outliers ===
             if is_outlier:
                 # Make outlier significantly different
                 base = base * (1 + 2 * np.random.randn()) + 3 * np.random.randn()
-            
+
             # Combine all components
             X[i, v] = base + temporal_noise
-    
+
     # Convert to numpy
     X = X.cpu().numpy()
     y = y.cpu().numpy()
-    
+
     return X, y
 
 
 @dataclass
 class ExperimentConfig:
     """Dummy configuration."""
+
     n_train: int = 100
     n_test: int = 50
-    n_vars: int = 2
+    nvars: int = 2
     series_length: int = 100
     num_classes: int = 3
     seed: int = 0
@@ -232,12 +228,12 @@ class ExperimentConfig:
 def get_synthetic_difficulty_params(difficulty: int) -> dict:
     """
     Get parameters for synthetic data generation based on difficulty level.
-    
+
     Parameters
     ----------
     difficulty : int
         Difficulty level from 1 (easiest) to 10 (hardest)
-    
+
     Returns
     -------
     dict
@@ -245,58 +241,52 @@ def get_synthetic_difficulty_params(difficulty: int) -> dict:
     """
     # Clamp difficulty to valid range
     difficulty = max(1, min(10, difficulty))
-    
+
     # Define parameter ranges
     # Difficulty 1: Very easy (95%+ accuracy)
     # Difficulty 5: Medium (85-90% accuracy)
     # Difficulty 10: Very hard (60-70% accuracy)
-    
+
     # Linear interpolation between easy and hard parameters
     t = (difficulty - 1) / 9.0  # Normalize to [0, 1]
-    
+
     params = {
         # Class separation: high for easy, low for hard
-        'class_separation': 2.5 - t * 2.0,  # 2.5 -> 0.5
-        
+        "class_separation": 2.5 - t * 2.0,  # 2.5 -> 0.5
         # Within-class variance: low for easy, high for hard
-        'inter_class_variance': 0.05 + t * 0.5,  # 0.05 -> 0.55
-        
+        "inter_class_variance": 0.05 + t * 0.5,  # 0.05 -> 0.55
         # Temporal noise: low for easy, high for hard
-        'temporal_noise_std': 0.05 + t * 0.35,  # 0.05 -> 0.40
-        
+        "temporal_noise_std": 0.05 + t * 0.35,  # 0.05 -> 0.40
         # Fourier noise: none for easy, high for hard
-        'fourier_noise_std': t * 0.25,  # 0.0 -> 0.25
-        
+        "fourier_noise_std": t * 0.25,  # 0.0 -> 0.25
         # Periodicity: strong for easy, weak for hard
-        'periodicity_strength': 1.0 - t * 0.6,  # 1.0 -> 0.4
-        
+        "periodicity_strength": 1.0 - t * 0.6,  # 1.0 -> 0.4
         # Frequency variation: low for easy, high for hard
-        'frequency_variation': 0.1 + t * 0.5,  # 0.1 -> 0.6
-        
+        "frequency_variation": 0.1 + t * 0.5,  # 0.1 -> 0.6
         # Drift: low for easy, higher for hard
-        'drift_strength': 0.02 + t * 0.08,  # 0.02 -> 0.10
-        
+        "drift_strength": 0.02 + t * 0.08,  # 0.02 -> 0.10
         # Outliers: none for easy, some for hard
-        'outlier_prob': t * 0.08,  # 0.0 -> 0.08
-        
+        "outlier_prob": t * 0.08,  # 0.0 -> 0.08
         # Phase coherence: high for easy, low for hard
-        'phase_coherence': 1.0 - t * 0.7,  # 1.0 -> 0.3
-        
+        "phase_coherence": 1.0 - t * 0.7,  # 1.0 -> 0.3
         # Harmonics: use for easier cases
-        'use_harmonics': difficulty <= 7,
-        'n_harmonics': max(1, 3 - difficulty // 3),  # 3 -> 1
-        
+        "use_harmonics": difficulty <= 7,
+        "n_harmonics": max(1, 3 - difficulty // 3),  # 3 -> 1
         # Trend type: simpler for easy, more complex for hard
-        'trend_type': 'linear' if difficulty <= 5 else 'quadratic' if difficulty <= 8 else 'exponential',
+        "trend_type": (
+            "linear"
+            if difficulty <= 5
+            else "quadratic" if difficulty <= 8 else "exponential"
+        ),
     }
-    
+
     return params
 
 
 def load_data_with_difficulty(dataname: str, config: ExperimentConfig):
     """
     Load data based on dataset name, with support for synthetic difficulty levels.
-    
+
     Parameters
     ----------
     dataname : str
@@ -304,7 +294,7 @@ def load_data_with_difficulty(dataname: str, config: ExperimentConfig):
         where the number indicates difficulty (1=easiest, 10=hardest)
     config : ExperimentConfig
         Experiment configuration
-    
+
     Returns
     -------
     X_train, y_train, X_test, y_test, num_classes
@@ -318,44 +308,48 @@ def load_data_with_difficulty(dataname: str, config: ExperimentConfig):
                 # Extract number from 'synthetic3', 'synthetic10', etc.
                 difficulty = int(dataname.replace("synthetic", ""))
                 if difficulty < 1 or difficulty > 10:
-                    raise ValueError(f"Difficulty must be between 1 and 10, got {difficulty}")
+                    raise ValueError(
+                        f"Difficulty must be between 1 and 10, got {difficulty}"
+                    )
             except ValueError:
-                print(f"Warning: Could not parse difficulty from '{dataname}', using default difficulty=5")
+                print(
+                    f"Warning: Could not parse difficulty from '{dataname}', using default difficulty=5"
+                )
                 difficulty = 5
-        
+
         # Get difficulty-specific parameters
         diff_params = get_synthetic_difficulty_params(difficulty)
-        
+
         print(f"Generating synthetic data with difficulty={difficulty}")
         print(f"  Expected accuracy range: {get_expected_accuracy_range(difficulty)}")
         print(f"  Class separation: {diff_params['class_separation']:.2f}")
         print(f"  Inter-class variance: {diff_params['inter_class_variance']:.2f}")
         print(f"  Temporal noise: {diff_params['temporal_noise_std']:.2f}")
-        
+
         # Generate training data
         X_train, y_train = generate_synthetic_trajectories(
             num_trajs=config.n_train,
-            n_vars=config.n_vars,
+            nvars=config.nvars,
             points=config.series_length,
             num_classes=config.num_classes,
             seed=config.seed,
-            **diff_params
+            **diff_params,
         )
-        
+
         # Generate test data
         X_test, y_test = generate_synthetic_trajectories(
             num_trajs=config.n_test,
-            n_vars=config.n_vars,
+            nvars=config.nvars,
             points=config.series_length,
             num_classes=config.num_classes,
             seed=config.seed + 1,
-            **diff_params
+            **diff_params,
         )
-        
+
         num_classes = config.num_classes
-        
+
         return X_train, y_train, X_test, y_test, num_classes, diff_params
-    
+
     else:
         # Handle other dataset types here
         raise NotImplementedError(f"Dataset '{dataname}' not implemented")
@@ -381,75 +375,70 @@ def get_expected_accuracy_range(difficulty: int) -> str:
 # Example usage
 if __name__ == "__main__":
     config = ExperimentConfig(
-        n_train=100,
-        n_test=50,
-        n_vars=3,
-        series_length=50,
-        num_classes=3,
-        seed=42
+        n_train=100, n_test=50, nvars=3, series_length=50, num_classes=3, seed=42
     )
-    
+
     # Test different difficulty levels
     for dataname in ["synthetic1", "synthetic5", "synthetic10"]:
         print(f"\n{'='*60}")
         print(f"Testing {dataname}")
-        print('='*60)
-        
+        print("=" * 60)
+
         X_train, y_train, X_test, y_test, num_classes = load_data_with_difficulty(
             dataname, config
         )
-        
+
         print(f"X_train shape: {X_train.shape}")
         print(f"y_train shape: {y_train.shape}")
         print(f"Class distribution: {np.bincount(y_train)}")
-        
-        
+
+
 # Example usage showing difficulty control
 def demonstrate_difficulty_levels():
     """Show how to generate datasets with different difficulty levels"""
-    
+
     # Easy classification (90-95% accuracy expected)
     X_easy, y_easy = generate_synthetic_trajectories(
         num_trajs=1000,
-        n_vars=5,
+        nvars=5,
         points=100,
         num_classes=3,
-        class_separation=2.0,      # High separation
+        class_separation=2.0,  # High separation
         inter_class_variance=0.1,  # Low within-class variance
-        temporal_noise_std=0.1,    # Low noise
-        fourier_noise_std=0.0,     # No frequency noise
+        temporal_noise_std=0.1,  # Low noise
+        fourier_noise_std=0.0,  # No frequency noise
         periodicity_strength=1.0,  # Strong periodic patterns
     )
-    
+
     # Medium difficulty (80-90% accuracy expected)
     X_medium, y_medium = generate_synthetic_trajectories(
         num_trajs=1000,
-        n_vars=5,
+        nvars=5,
         points=100,
         num_classes=3,
-        class_separation=1.0,      # Moderate separation
+        class_separation=1.0,  # Moderate separation
         inter_class_variance=0.3,  # Moderate variance
-        temporal_noise_std=0.2,    # Moderate noise
-        fourier_noise_std=0.1,     # Some frequency noise
+        temporal_noise_std=0.2,  # Moderate noise
+        fourier_noise_std=0.1,  # Some frequency noise
         periodicity_strength=0.7,  # Mixed periodic/non-periodic
         frequency_variation=0.3,
     )
-    
+
     # Hard classification (60-75% accuracy expected)
     X_hard, y_hard = generate_synthetic_trajectories(
         num_trajs=1000,
-        n_vars=5,
+        nvars=5,
         points=100,
         num_classes=3,
-        class_separation=0.5,      # Low separation
+        class_separation=0.5,  # Low separation
         inter_class_variance=0.5,  # High within-class variance
-        temporal_noise_std=0.3,    # High noise
-        fourier_noise_std=0.2,     # High frequency noise
+        temporal_noise_std=0.3,  # High noise
+        fourier_noise_std=0.2,  # High frequency noise
         periodicity_strength=0.5,  # Weak periodicity
-        outlier_prob=0.05,         # 5% outliers
+        outlier_prob=0.05,  # 5% outliers
         frequency_variation=0.5,
     )
-    
+
     return X_easy, y_easy, X_medium, y_medium, X_hard, y_hard
 
 
@@ -458,25 +447,25 @@ def plot_trajectories(
     y: torch.Tensor,
     num_classes: int = 3,
     samples_per_class: int = 5,
-    path = None
+    path=None,
 ) -> None:
     """
     Plot sample trajectories for each variable and class.
 
     Parameters
-    - X: tensor (num_trajs, n_vars, points)
+    - X: tensor (num_trajs, nvars, points)
     - y: tensor (num_trajs,)
     - num_classes: number of classes to show (colors indexed by class id)
     - samples_per_class: how many examples per class to plot
     """
-    _, n_vars, _ = X.shape
+    _, nvars, _ = X.shape
 
     # Configure figure size: one subplot per variable
-    plt.figure(figsize=(15, max(2, n_vars * 2)))
+    plt.figure(figsize=(15, max(2, nvars * 2)))
     colors = plt.cm.tab10.colors  # color palette for up to 10 classes
 
-    for var in range(n_vars):
-        plt.subplot(n_vars, 1, var + 1)
+    for var in range(nvars):
+        plt.subplot(nvars, 1, var + 1)
         for cls in range(num_classes):
             # Indices of samples belonging to this class
             class_indices = (y == cls).nonzero()[0][:samples_per_class]

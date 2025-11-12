@@ -28,7 +28,7 @@ class ConceptGenerator:
 
     def __init__(
         self,
-        n_vars: int = 1,
+        nvars: int = 1,
         nvars_formulae: int = 1,
         leaf_probability: float = 0.5,
         time_bound_max_range: int = 50,
@@ -41,7 +41,7 @@ class ConceptGenerator:
         Initialize the concept generator.
 
         Args:
-            n_vars: Total number of variables in the system
+            nvars: Total number of variables in the system
             nvars_formulae: Maximum variables per formula
             leaf_probability: Probability of generating a leaf node
             time_bound_max_range: Maximum time range for temporal operators
@@ -50,7 +50,7 @@ class ConceptGenerator:
             device: Computation device
             seed: Random seed for reproducibility
         """
-        self.n_vars = n_vars
+        self.nvars = nvars
         self.nvars_formulae = nvars_formulae
         self.points = points
         self.max_nodes = max_nodes
@@ -133,7 +133,7 @@ class ConceptGenerator:
             signal_samples,
             normalize_robustness,
         )
-        
+
         # Handle trivial case where no filtering is needed
         if cosine_threshold == 1.0:
             return self._generate_without_filtering(target_dim, output_path)
@@ -199,7 +199,7 @@ class ConceptGenerator:
             )
         else:
             # Start with a random formula
-            formulae = [self.sampler.sample_formula(self.n_vars)]
+            formulae = [self.sampler.sample_formula(self.nvars)]
             robustness_vectors = None
 
         # Compute robustness vectors if not provided
@@ -221,7 +221,7 @@ class ConceptGenerator:
         measure = BaseMeasure(device=self.device)
         with torch.no_grad():
             return measure.sample(
-                samples=signal_samples, varn=self.n_vars, points=self.points
+                samples=signal_samples, varn=self.nvars, points=self.points
             ).to(self.device)
 
     def _compute_robustness_vectors(
@@ -246,14 +246,14 @@ class ConceptGenerator:
         current_formulae = []
         while len(current_formulae) < target_dim:
             batch_size = min(1000, target_dim - len(current_formulae))
-            batch = self.sampler.sample_formula_bag(batch_size, self.n_vars)
+            batch = self.sampler.sample_formula_bag(batch_size, self.nvars)
 
             # Filter by node count and remove tautologies/contradictions
             batch = [phi for phi in batch if find_n_nodes(phi) <= self.max_nodes]
             batch = filter_tautology_contradictions_serial(
                 batch,
                 points=self.points,
-                max_nvars=self.n_vars,
+                max_nvars=self.nvars,
                 device=self.device,
                 samples=1000,
             )
@@ -338,7 +338,7 @@ class ConceptGenerator:
 
     def _generate_candidate_batch(self, batch_size: int) -> List:
         """Generate a batch of candidate formulae."""
-        candidates = self.sampler.sample_formula_bag(batch_size, self.n_vars)
+        candidates = self.sampler.sample_formula_bag(batch_size, self.nvars)
 
         # Filter by node count
         candidates = [phi for phi in candidates if find_n_nodes(phi) <= self.max_nodes]
@@ -347,7 +347,7 @@ class ConceptGenerator:
         return filter_tautology_contradictions_serial(
             candidates,
             points=self.points,
-            max_nvars=self.n_vars,
+            max_nvars=self.nvars,
             device=self.device,
             samples=1000,
         )
@@ -386,7 +386,7 @@ class ConceptGenerator:
                 simplest_existing = min(similar_formulae, key=find_n_nodes)
 
                 if find_n_nodes(
-                    self.sampler.sample_formula_bag(1, self.n_vars)[i]
+                    self.sampler.sample_formula_bag(1, self.nvars)[i]
                 ) < find_n_nodes(simplest_existing):
                     keep_indices.append(i)
 

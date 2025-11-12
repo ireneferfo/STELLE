@@ -25,22 +25,22 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 100
-    n_test: int = 80
-    n_vars: int = 2
-    series_length: int = 30
+    n_train: int = 500
+    n_test: int = 100
+    nvars: int = 5
+    series_length: int = 100
     num_classes: int = 3
 
     # Fixed parameters
     seed: int = 0
-    pll: int = 2
-    workers: int = 0
-    samples: int = 500
-    epochs: int = 3
-    cf: int = 50
-    patience: int = 5
+    pll: int = 8
+    workers: int = 2
+    samples: int = 5000
+    epochs: int = 3000
+    cf: int = 300
+    patience: int = 10
     val_every_n_epochs: int = 1
-    verbose: int = 1
+    verbose: int = 100
     logging: bool = False
 
     # Kernel parameters
@@ -51,10 +51,10 @@ class ExperimentConfig:
 
     # Concept parameters
     t: float = 1.0
-    n_vars_formulae: int = 1
+    nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 10
-    min_total: int = 10
+    dim_concepts: int = 1000
+    min_total: int = 100
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
@@ -64,7 +64,7 @@ class ExperimentConfig:
     bs: int = 32
     lr: float = 1e-4
     init_eps: float = 1
-    activation_str: str = "relu"
+    activation_str: str = "gelu"
     backprop_method: str = "ig"
     init_crel: float = 1
     h: int = 256
@@ -91,11 +91,11 @@ def main():
     results = []
 
     # from here it depends from concepts details
-    for n_vars_formulae in [1, 2, 3]:
-        print(f"\n>>>>>>>>>>>>> N VARS FORMULAE = {n_vars_formulae} >>>>>>>>>>>>>\n")
+    for nvars_formulae in [1, 2, 3]:
+        print(f"\n>>>>>>>>>>>>> N VARS FORMULAE = {nvars_formulae} >>>>>>>>>>>>>\n")
         for t in [1, 0.99, 0.97, 0.95]:
             print(f"\n>>>>>>>>>>>>> T = {t} >>>>>>>>>>>>>\n")
-            config_i = replace(config, n_vars_formulae=n_vars_formulae, t=t)
+            config_i = replace(config, nvars_formulae=nvars_formulae, t=t)
 
             kernel, _, concepts_time = set_kernels_and_concepts(
                 trainloader.dataset, paths["phis_path_og"], config_i
@@ -104,7 +104,7 @@ def main():
             model_id = (
                 f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
                 f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{config_i.dim_concepts}_"
-                f"{config_i.creation_mode}_f{config_i.n_vars_formulae}"
+                f"{config_i.creation_mode}_f{config_i.nvars_formulae}"
             )
             # attach to model for later reference and debugging
             print(f"Model ID: {model_id}")

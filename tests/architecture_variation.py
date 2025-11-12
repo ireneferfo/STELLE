@@ -21,22 +21,22 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 50
-    n_test: int = 30
-    n_vars: int = 2
-    series_length: int = 30
+    n_train: int = 500
+    n_test: int = 100
+    nvars: int = 5
+    series_length: int = 100
     num_classes: int = 3
 
     # Fixed parameters
     seed: int = 0
-    pll: int = 2
-    workers: int = 0
-    samples: int = 500
-    epochs: int = 3
-    cf: int = 50
-    patience: int = 5
+    pll: int = 8
+    workers: int = 2
+    samples: int = 5000
+    epochs: int = 3000
+    cf: int = 300
+    patience: int = 10
     val_every_n_epochs: int = 1
-    verbose: int = 1
+    verbose: int = 100
     logging: bool = False
 
     # Kernel parameters
@@ -47,10 +47,10 @@ class ExperimentConfig:
 
     # Concept parameters
     t: float = 1.0
-    n_vars_formulae: int = 1
+    nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 20
-    min_total: int = 20
+    dim_concepts: int = 1000
+    min_total: int = 100
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
@@ -60,7 +60,7 @@ class ExperimentConfig:
     bs: int = 32
     lr: float = 1e-4
     init_eps: float = 1
-    activation_str: str = "relu"
+    activation_str: str = "gelu"
     backprop_method: str = "ig"
     init_crel: float = 1
     h: int = 256
@@ -81,7 +81,7 @@ def get_anchor_items(
 
     # Validate and adjust parameters
     _, creation_mode = _validate_parameters(
-        config.n_vars, config.n_vars_formulae, config.creation_mode
+        config.nvars, config.nvars_formulae, config.creation_mode
     )
 
     stlkernel = formula_manager.stl_kernel
@@ -142,18 +142,20 @@ def main():
 
         args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
         if type == "Anchor":
-            base_concepts, concepts, concept_embeddings, base_concepts_time = get_anchor_items(
-                kernel,
-                trainloader.dataset,
-                paths["phis_path_og"],
-                formula_manager,
-                dim_anchors,
-                config,
+            base_concepts, concepts, concept_embeddings, base_concepts_time = (
+                get_anchor_items(
+                    kernel,
+                    trainloader.dataset,
+                    paths["phis_path_og"],
+                    formula_manager,
+                    dim_anchors,
+                    config,
+                )
             )
             model, accuracy_results = train_test_model(
                 args,
                 type=type,
-                concepts = concepts,
+                concepts=concepts,
                 concept_embeddings=concept_embeddings,
             )
         else:
