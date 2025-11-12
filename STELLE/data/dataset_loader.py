@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from aeon.datasets import load_classification
 from torch.utils.data import DataLoader
 
-from ..data.data_generation import generate_synthetic_trajectories
+from ..data.data_generation import load_data_with_difficulty
 from .base_dataset import TrajectoryDataset
 from .dataset_utils import remove_redundant_variables, convert_labels_to_numeric
 
@@ -52,18 +52,9 @@ def get_dataset(
 def _load_raw_data(dataname, config):
     """Load raw data from synthetic generation or aeon datasets."""
     if "synthetic" in dataname:
-        X_train = generate_synthetic_trajectories(
-            config.n_train, config.n_vars, config.series_length, config.num_classes, config.seed
+        X_train, y_train ,X_test, y_test, num_classes = load_data_with_difficulty(
+            dataname, config
         )
-        y_train = X_train[1]
-        X_train = X_train[0]
-        
-        X_test = generate_synthetic_trajectories(
-            config.n_test, config.n_vars, config.series_length, config.num_classes, config.seed + 1
-        )
-        y_test = X_test[1]
-        X_test = X_test[0]
-        num_classes = config.num_classes
     else:
         X_train, y_train, metadata = load_classification(
             dataname, split="train", return_metadata=True
