@@ -28,7 +28,8 @@ def compute_explanations(args, globals = False, **kwargs):
     explanation_layer = model.output_activation.to(device)
     trajbyclass = trainloader.dataset.split_by_class()
     local_explanations_true_pred = []
-
+    expl_type = kwargs.get('expl_type', None)
+    
     for i in ["true", "pred"]:
         print(f'Getting local explanations ({i})...')
         explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
@@ -44,15 +45,28 @@ def compute_explanations(args, globals = False, **kwargs):
         
         if compute:
             start_time = time()
-            local_explanations = model.get_explanations(
-                x=testloader.dataset.trajectories,
-                y_true=testloader.dataset.labels if i == "true" else None,
-                trajbyclass=trajbyclass,
-                layer=explanation_layer,
-                t_k=config.t_k,
-                method = kwargs.get('method', 'ig'),
-                op = kwargs.get('explanation_operation', 'mean')
-            )
+            if expl_type:
+                local_explanations = get_alternative_explanations(
+                    model = model,
+                    x=testloader.dataset.trajectories,
+                    y_true=testloader.dataset.labels if i == "true" else None,
+                    trajbyclass=trajbyclass,
+                    layer=explanation_layer,
+                    t_k=config.t_k,
+                    method = kwargs.get('method', 'ig'),
+                    op = kwargs.get('explanation_operation', 'mean'),
+                    expl_type = expl_type
+                )
+            else:
+                local_explanations = model.get_explanations(
+                    x=testloader.dataset.trajectories,
+                    y_true=testloader.dataset.labels if i == "true" else None,
+                    trajbyclass=trajbyclass,
+                    layer=explanation_layer,
+                    t_k=config.t_k,
+                    method = kwargs.get('method', 'ig'),
+                    op = kwargs.get('explanation_operation', 'mean')
+                )
             for e in local_explanations:
                 e.generate_explanation(
                     improvement_threshold=config.imp_t_l, enable_postprocessing=True
@@ -99,6 +113,98 @@ def compute_explanations(args, globals = False, **kwargs):
         global_metrics = {}
     del model
     return local_metrics, global_metrics
+
+
+# TODO matching di shapes
+
+def get_alternative_explanations(
+    model,
+    x: torch.Tensor,
+    trajbyclass,
+    layer,
+    expl_type: str,
+    y_true: Optional[torch.Tensor] = None,
+    getmatrix: bool = False,
+    k: Optional[int] = None,
+    t_k: float = 0.9,
+    method: str = "ig",
+    filter_onlycorrect: bool = False,
+    op: str = "mean",
+    norm: bool = False,
+):
+    """
+    Generate concept-based explanations for predictions.
+
+    Args:
+        model: trained model
+        x: Input trajectories
+        trajbyclass: Trajectory examples by class
+        layer: Layer to explain
+        arch_type: way of extracting the explanation. "crel" (concept_relevance only), "lw" (backprop weights only), "crelGx" (crel x Gx), "Gxlw" (Gx x backprop), "crellw" (crel x backprop)
+        y_true: True labels (optional)
+        getmatrix: Whether to return attribution matrix
+        k: Number of top concepts (None for adaptive)
+        t_k: Cumulative score threshold
+        method: Attribution method ('ig', 'deeplift', 'og', 'random', 'identity')
+        filter_onlycorrect: Only explain correct predictions
+        op: Comparison operation ('mean', 'max', or None)
+        norm: Whether to normalize attribution scores
+
+    Returns:
+        Top concept indices, attribution weights, and explanations
+    """
+    model.eval()
+
+    # Get model predictions
+    with torch.no_grad():
+        x = x.to(model.device)
+        class_scores, concept_relevance, crelGs_raw, G_phis = model.forward(
+            x, trainingmode=False
+        )
+
+    y_pred = class_scores.argmax(dim=1).cpu()
+
+    if expl_type == "crel_gx": 
+        term1 = model.output_activation(crelGs_raw) if norm else crelGs_raw # (batch, phis * classes)
+    elif expl_type in ["crel", "crel_lw"]:
+        term1 = (
+            model.output_activation(concept_relevance) if norm else concept_relevance
+        ) # (batch, phis)
+    else: 
+        term1 = G_phis # (batch, phis, classes)
+
+    # Filter for correct predictions if requested
+    if filter_onlycorrect and y_true is not None:
+        x, y_pred, term1, class_scores = model._filter_correct_predictions(
+            x, y_true, y_pred, term1, class_scores
+        )
+
+    # Compute attributions
+    x_requires_grad = x.requires_grad_()
+    targets = y_pred if y_true is None else y_pred
+
+    if expl_type in ["lw", "gx_lw", "crel_lw"]:
+        term2 = model._compute_attributions(x_requires_grad, targets, layer, method) # (batch, phis * classes)
+    else:
+        term2 = torch.ones(*crelGs_raw.shape) # (batch, phis * classes)
+
+    # Compute final attribution matrix
+    final_matrix = model._compute_final_attributions(term1, term2, y_pred)
+    # Get discriminative scores
+    discriminative_scores = model._compute_discriminative_scores(
+        final_matrix, targets, op
+    )
+
+    if getmatrix:
+        grouped_matrix = model._group_matrix_by_class(final_matrix, targets)
+        return grouped_matrix, y_pred
+
+    # Generate explanations
+    explanations = model._generate_explanations(
+        x, y_true, y_pred, discriminative_scores, trajbyclass, k, t_k
+    )
+
+    return explanations
 
 
 
