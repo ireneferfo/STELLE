@@ -131,7 +131,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def save_run_settings(results_dir, **kwargs):
     constants = {**kwargs}
-    info_file_path = results_dir + 'run_info.txt'
+    info_file_path = results_dir + '/run_info.txt'
     
     # Filter out non-serializable objects
     serializable_constants = {}
