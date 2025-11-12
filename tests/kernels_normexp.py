@@ -26,22 +26,22 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 100
-    n_test: int = 80
-    nvars: int = 2
-    series_length: int = 30
+    n_train: int = 500
+    n_test: int = 100
+    nvars: int = 5
+    series_length: int = 100
     num_classes: int = 3
 
     # Fixed parameters
     seed: int = 0
-    pll: int = 2
-    workers: int = 0
-    samples: int = 500
-    epochs: int = 3
-    cf: int = 50
-    patience: int = 5
+    pll: int = 8
+    workers: int = 2
+    samples: int = 5000
+    epochs: int = 3000
+    cf: int = 300
+    patience: int = 10
     val_every_n_epochs: int = 1
-    verbose: int = 1
+    verbose: int = 20
     logging: bool = False
 
     # Kernel parameters
@@ -54,7 +54,7 @@ class ExperimentConfig:
     t: float = 1.0
     nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 100
+    dim_concepts: int = 1000
     min_total: int = 100
     imp_t_l: float = 0
     imp_t_g: float = 0
@@ -65,7 +65,7 @@ class ExperimentConfig:
     bs: int = 32
     lr: float = 1e-4
     init_eps: float = 1
-    activation_str: str = "relu"
+    activation_str: str = "gelu"
     backprop_method: str = "ig"
     init_crel: float = 1
     h: int = 256
@@ -91,7 +91,7 @@ def main():
 
     results = []
 
-    for i, j, k, l in product([False, True], repeat=4):
+    for i, j, k, l in product([False, True], repeat=4):  # noqa: E741
         print(f"\n>>>>>>>>>>>>> norm/exp stl/traj = {i, j, k, l} >>>>>>>>>>>>>\n")
 
         config_i = replace(
@@ -124,7 +124,8 @@ def main():
             "normalize_kernel": i,
             "exp_kernel": j,
             "normalize_rhotau": k,
-            "exp_rhotau": l**result_raw,
+            "exp_rhotau": l,
+            **result_raw,
         }
 
         result = flatten_dict(result)
