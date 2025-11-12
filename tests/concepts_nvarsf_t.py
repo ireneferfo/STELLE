@@ -25,8 +25,8 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 500
-    n_test: int = 100
+    n_train: int = 50
+    n_test: int = 15
     nvars: int = 5
     series_length: int = 100
     num_classes: int = 3
@@ -35,8 +35,8 @@ class ExperimentConfig:
     seed: int = 0
     pll: int = 8
     workers: int = 2
-    samples: int = 5000
-    epochs: int = 3000
+    samples: int = 500
+    epochs: int = 3
     cf: int = 300
     patience: int = 10
     val_every_n_epochs: int = 1
@@ -53,8 +53,8 @@ class ExperimentConfig:
     t: float = 1.0
     nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 1000
-    min_total: int = 100
+    dim_concepts: int = 22
+    min_total: int = 9
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
@@ -103,7 +103,7 @@ def main():
 
             model_id = (
                 f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
-                f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{config_i.dim_concepts}_"
+                f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{len(kernel.phis)}_"
                 f"{config_i.creation_mode}_f{config_i.nvars_formulae}"
             )
             # attach to model for later reference and debugging

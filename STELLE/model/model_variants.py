@@ -7,6 +7,7 @@ from .base_model import BaseConceptModel, BaseModelConfig
 
 #! da testare tutte le explanations globali
 
+
 class ConceptBasedModel_RobsAsGx(BaseConceptModel):
 
     def _compute_G_phis_matrix(
@@ -25,17 +26,17 @@ class ConceptBasedModel_RobsAsGx(BaseConceptModel):
 
 
 class ConceptBasedModel_NoGx(BaseConceptModel):
-    
+
     def _compute_G_phis_matrix(
         self, x: torch.Tensor, concept_relevance: torch.Tensor, trainingmode: bool
     ) -> torch.Tensor:
         """Compute identity G_phis matrix."""
-        G_phis = torch.eye(len(self.concepts), self.num_classes, device=self.device)
+        G_phis = torch.ones(len(self.concepts), self.num_classes, device=self.device)
         return G_phis.unsqueeze(0).expand(x.size(0), -1, -1)
 
 
 class ConceptBasedModel_RobsAsHx(BaseConceptModel):
-    
+
     def _compute_temporal_embeddings(
         self, x: torch.Tensor, trainingmode: bool
     ) -> torch.Tensor:
@@ -58,16 +59,16 @@ class ConceptBasedModel_RobsAsHx(BaseConceptModel):
                         .squeeze()
                         .to(self.device, non_blocking=True)
                     )
-                    
+
         return x_robs
 
 
 class ConceptBasedModel_Robs(BaseConceptModel):
-    
+
     def forward(
         self, x: torch.Tensor, trainingmode: bool = True
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        
+
         x = x.to(self.device)
 
         # Compute temporal embeddings (variant-specific)
@@ -77,7 +78,7 @@ class ConceptBasedModel_Robs(BaseConceptModel):
         robs_dropped = self.dropout(robs)
 
         # G_phis as identity
-        G_phis = torch.eye(len(self.concepts), self.num_classes, device=self.device)
+        G_phis = torch.ones(len(self.concepts), self.num_classes, device=self.device)
         G_phis = G_phis.unsqueeze(0).expand(x.size(0), -1, -1)
 
         # Compute concept_relevance-weighted features
@@ -86,11 +87,11 @@ class ConceptBasedModel_Robs(BaseConceptModel):
         # Apply output activation and classify
         crelG = self.output_activation(crelG_raw).to(self.device)
         class_scores = self.classifier(crelG.float().to(self.device))
-        
+
         if trainingmode:
-            return class_scores 
+            return class_scores
         return class_scores, robs, crelG_raw, G_phis
-     
+
     def _compute_temporal_embeddings(
         self, x: torch.Tensor, trainingmode: bool
     ) -> torch.Tensor:
@@ -113,13 +114,14 @@ class ConceptBasedModel_Robs(BaseConceptModel):
                         .squeeze()
                         .to(self.device, non_blocking=True)
                     )
-                    
+
         return x_robs
 
 
 @dataclass
 class AnchorModelConfig(BaseModelConfig):
     """Configuration for model initialization."""
+
     base_concepts: Any = None
     concept_embeddings: Any = None
 
@@ -134,9 +136,11 @@ class ConceptBasedModel_Anchor(BaseConceptModel):
 
     def __init__(self, config: AnchorModelConfig):
         super().__init__(config)
-        
+
         self.base_concepts = config.base_concepts
-        self.concept_embeddings = config.concept_embeddings.clone().detach().to(self.device)
+        self.concept_embeddings = (
+            config.concept_embeddings.clone().detach().to(self.device)
+        )
 
     def forward(
         self, x: torch.Tensor, trainingmode: bool = True
@@ -156,10 +160,12 @@ class ConceptBasedModel_Anchor(BaseConceptModel):
         # Compute temporal embeddings
         temb = self._compute_temporal_embeddings(x, trainingmode)
         # Compute product of trajectory embedding and concepts embedding
-        if self.device == 'mps':
+        if self.device == "mps":
             concept_product = torch.matmul(temb, self.concept_embeddings.t())
         else:
-            concept_product = torch.matmul(temb.double(), self.concept_embeddings.t().double())
+            concept_product = torch.matmul(
+                temb.double(), self.concept_embeddings.t().double()
+            )
         concept_relevance = self._compute_concept_relevance(concept_product)
 
         # Apply dropout
@@ -241,11 +247,11 @@ class ConceptBasedModel_Anchor(BaseConceptModel):
 
             return epsilon
 
-        return last_epsilon     
+        return last_epsilon
 
 
-# TODO andranno identità di shape giuste
 # TODO matching di shapes non sarà banale
+
 class ConceptBasedModel_AltExplanations(BaseConceptModel):
 
     def get_explanations(
@@ -253,7 +259,7 @@ class ConceptBasedModel_AltExplanations(BaseConceptModel):
         x: torch.Tensor,
         trajbyclass,
         layer,
-        type: str,
+        arch_type: str,
         y_true: Optional[torch.Tensor] = None,
         getmatrix: bool = False,
         k: Optional[int] = None,
@@ -270,7 +276,7 @@ class ConceptBasedModel_AltExplanations(BaseConceptModel):
             x: Input trajectories
             trajbyclass: Trajectory examples by class
             layer: Layer to explain
-            type: way of extracting the explanation. "crel" (concept_relevance only), "lw" (backprop weights only), "crelGx" (crel x Gx), "Gxlw" (Gx x backprop), "crellw" (crel x backprop)
+            arch_type: way of extracting the explanation. "crel" (concept_relevance only), "lw" (backprop weights only), "crelGx" (crel x Gx), "Gxlw" (Gx x backprop), "crellw" (crel x backprop)
             y_true: True labels (optional)
             getmatrix: Whether to return attribution matrix
             k: Number of top concepts (None for adaptive)
@@ -288,38 +294,38 @@ class ConceptBasedModel_AltExplanations(BaseConceptModel):
         # Get model predictions
         with torch.no_grad():
             x = x.to(self.device)
-            class_scores, concept_relevance, crelGs_raw, G_phis = self.forward(x, trainingmode=False)
-            
+            class_scores, concept_relevance, crelGs_raw, G_phis = self.forward(
+                x, trainingmode=False
+            )
+
         y_pred = class_scores.argmax(dim=1).cpu()
-        
-        if type == 'crelGx':
-            term1 = self.output_activation(crelGs_raw) if norm else crelGs_raw
-        elif type in ['crel', 'crellw']:
-            term1 = self.output_activation(concept_relevance) if norm else concept_relevance
+
+        if arch_type == "crelGx": 
+            term1 = self.output_activation(crelGs_raw) if norm else crelGs_raw # (batch, phis * classes)
+        elif arch_type in ["crel", "crellw"]:
+            term1 = (
+                self.output_activation(concept_relevance) if norm else concept_relevance
+            ) # (batch, phis)
         else:
-            term1 = G_phis
-            
+            term1 = G_phis # (batch, phis, classes)
+
         # Filter for correct predictions if requested
         if filter_onlycorrect and y_true is not None:
             x, y_pred, term1, class_scores = self._filter_correct_predictions(
                 x, y_true, y_pred, term1, class_scores
             )
-            
+
         # Compute attributions
         x_requires_grad = x.requires_grad_()
         targets = y_pred if y_true is None else y_pred
 
-        if type in['lw', 'Gxlw', 'crellw']:
-            term2 = self._compute_attributions(
-                x_requires_grad, targets, layer, method
-            )
+        if arch_type in ["lw", "Gxlw", "crellw"]:
+            term2 = self._compute_attributions(x_requires_grad, targets, layer, method) # (batch, phis * classes)
         else:
-            term2 = 1
-            
+            term2 = torch.ones(*crelGs_raw.shape) # (batch, phis * classes)
+
         # Compute final attribution matrix
-        final_matrix = self._compute_final_attributions(
-            term1, term2, y_pred
-        )
+        final_matrix = self._compute_final_attributions(term1, term2, y_pred)
         # Get discriminative scores
         discriminative_scores = self._compute_discriminative_scores(
             final_matrix, targets, op

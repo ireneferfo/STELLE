@@ -5,99 +5,125 @@ import os
 from .model import ConceptBasedModel, ModelConfig
 
 
-def train_test_model(args, type: str = 'base', **kwargs):
+def train_test_model(args, arch_type: str = "base", **kwargs):
     """Train or load a concept-based model with the given configuration.
-    Type (str): base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor
+    arch_type (str): base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor
     """
-    (
-        kernel, trainloader, valloader, testloader, model_path_ev, config
-    ) = args
-    
+    (kernel, trainloader, valloader, testloader, model_path_ev, config) = args
+
     device = kernel.device
     checkpath = model_path_ev[:-3] + "_checkpoint.pt"
-    
+
     # Try loading existing model
     loaded = _load_model(model_path_ev, device)
     if loaded:
-        print(f'Loaded existing model from {model_path_ev}.')
+        print(f"Loaded existing model from {model_path_ev}.")
         model, bestepoch, traintime, testresults, testtime = loaded
     else:
         # Create and train new model
-        model = _create_model(kernel, trainloader, config, type, device, **kwargs)
+        model = _create_model(kernel, trainloader, config, arch_type, device, **kwargs)
         model, bestepoch, traintime = _train_model(
-            model, trainloader, valloader, config.lr, config.epochs, config.verbose,
-            checkpath, config.patience, config.cf, config.val_every_n_epochs
+            model,
+            trainloader,
+            valloader,
+            config.lr,
+            config.epochs,
+            config.verbose,
+            checkpath,
+            config.patience,
+            config.cf,
+            config.val_every_n_epochs,
         )
         testresults, testtime = _validate(model, testloader)
-        _save_model(model, bestepoch, traintime, testresults, testtime, model_path_ev, checkpath)
+        _save_model(
+            model, bestepoch, traintime, testresults, testtime, model_path_ev, checkpath
+        )
         model = model.to(device)
-    
+
     results = {
         "best_epoch": bestepoch,
         **testresults,
         "train_time": traintime,
-        "test_time": testtime
+        "test_time": testtime,
     }
-    
+
     return model, results
 
 
-def _create_model(kernel, trainloader, config, type, device, **kwargs):
+def _create_model(kernel, trainloader, config, arch_type, device, **kwargs):
     """Create a new ConceptBasedModel instance."""
-    if type == 'Anchor':
+    if arch_type == "Anchor":
         from .model_variants import AnchorModelConfig
+
         modelconfig = AnchorModelConfig(
-        kernel=kernel,
-        base_concepts = kernel.phis, 
-        concepts=kwargs.get('concepts'),
-        concept_embeddings = kwargs.get('concept_embeddings'), 
-        num_classes=trainloader.dataset.num_classes,
-        initial_epsilon=config.init_eps,
-        initial_concept_relevance_scale=config.init_crel,
-        dropout=config.d,
-        parallel_workers=config.pll,
-        hidden_size=config.h,
-        num_layers=config.n_layers,
+            kernel=kernel,
+            base_concepts=kernel.phis,
+            concepts=kwargs.get("concepts"),
+            concept_embeddings=kwargs.get("concept_embeddings"),
+            num_classes=trainloader.dataset.num_classes,
+            initial_epsilon=config.init_eps,
+            initial_concept_relevance_scale=config.init_crel,
+            dropout=config.d,
+            parallel_workers=config.pll,
+            hidden_size=config.h,
+            num_layers=config.n_layers,
         )
     else:
         modelconfig = ModelConfig(
-        kernel=kernel,
-        concepts=kernel.phis,
-        num_classes=trainloader.dataset.num_classes,
-        initial_epsilon=config.init_eps,
-        initial_concept_relevance_scale=config.init_crel,
-        dropout=config.d,
-        parallel_workers=config.pll,
-        hidden_size=config.h,
-        num_layers=config.n_layers,
+            kernel=kernel,
+            concepts=kernel.phis,
+            num_classes=trainloader.dataset.num_classes,
+            initial_epsilon=config.init_eps,
+            initial_concept_relevance_scale=config.init_crel,
+            dropout=config.d,
+            parallel_workers=config.pll,
+            hidden_size=config.h,
+            num_layers=config.n_layers,
         )
-    match type:
-        case 'base': 
+    match arch_type:
+        case "base":
             return ConceptBasedModel(modelconfig).to(device)
-        case 'RobsAsGx':
+        case "RobsAsGx":
             from .model_variants import ConceptBasedModel_RobsAsGx
+
             return ConceptBasedModel_RobsAsGx(modelconfig).to(device)
-        case 'NoGx':
+        case "NoGx":
             from .model_variants import ConceptBasedModel_NoGx
+
             return ConceptBasedModel_NoGx(modelconfig).to(device)
-        case 'RobsAsHx':
+        case "RobsAsHx":
             from .model_variants import ConceptBasedModel_RobsAsHx
+
             return ConceptBasedModel_RobsAsHx(modelconfig).to(device)
-        case 'Robs':
+        case "Robs":
             from .model_variants import ConceptBasedModel_Robs
+
             return ConceptBasedModel_Robs(modelconfig).to(device)
-        case 'Anchor':
+        case "Anchor":
             from .model_variants import ConceptBasedModel_Anchor
+
             return ConceptBasedModel_Anchor(modelconfig).to(device)
         case _:
-            raise ValueError(f'Model of type {type} does not exist yet. Options: base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor')
+            raise ValueError(
+                f"Model of arch_type {arch_type} does not exist yet. Options: base, Robs, RobsAsHx, RobsAsGx, NoGx, Anchor"
+            )
 
 
-
-def _train_model(model, trainloader, valloader, lr, epochs, verbose, checkpath, patience, cf, val_every_n_epochs):
+def _train_model(
+    model,
+    trainloader,
+    valloader,
+    lr,
+    epochs,
+    verbose,
+    checkpath,
+    patience,
+    cf,
+    val_every_n_epochs,
+):
     """Train the model with the specified configuration."""
     optimizer = _create_optimizer(model, lr)
-    
+
     print("\nStarting model training...\n")
     _, bestepoch, traintime = model.train_model(
         optimizer,
@@ -110,7 +136,7 @@ def _train_model(model, trainloader, valloader, lr, epochs, verbose, checkpath, 
         check_frequency=cf,
         val_every_n_epochs=val_every_n_epochs,
     )
-    
+
     print(f"\nBest epoch: {bestepoch}, took {traintime:.0f}s. Testing the model...")
     return model, bestepoch, traintime
 
@@ -121,15 +147,13 @@ def _create_optimizer(model, lr):
         # Main parameters
         {
             "params": [
-                p for n, p in model.named_parameters()
-                if not n.endswith("_strength")
+                p for n, p in model.named_parameters() if not n.endswith("_strength")
             ]
         },
         # Regularization controllers (10x higher LR)
         {
             "params": [
-                p for n, p in model.named_parameters()
-                if n.endswith("_strength")
+                p for n, p in model.named_parameters() if n.endswith("_strength")
             ],
             "lr": lr * 10,
         },
@@ -142,7 +166,7 @@ def _validate(model, loader):
     start_time = time()
     results = model.validate(loader, by_class_stats=False)
     total_time = time() - start_time
-    
+
     print(
         f"Acc: {results['accuracy']:.1f} Wacc: {results['weighted_acc']:.1f}, "
         f"took {total_time:.0f}s."
@@ -154,7 +178,7 @@ def _load_model(path, device):
     """Load an existing model from disk if it exists."""
     if not os.path.exists(path):
         return None
-    
+
     try:
         print(f"\nLoading existing model from {path}.")
         model, bestepoch, traintime, testresults, testtime = torch.load(
@@ -168,17 +192,16 @@ def _load_model(path, device):
         return None
 
 
-def _save_model(model, bestepoch, traintime, testresults, testtime, model_path, checkpath):
+def _save_model(
+    model, bestepoch, traintime, testresults, testtime, model_path, checkpath
+):
     """Save the trained model to disk and clean up checkpoint."""
     if os.path.exists(model_path):
         os.remove(model_path)
-    
-    torch.save(
-        (model.cpu(), bestepoch, traintime, testresults, testtime),
-        model_path
-    )
+
+    torch.save((model.cpu(), bestepoch, traintime, testresults, testtime), model_path)
     print(f"Trained model saved to {model_path}")
-    
+
     # Remove checkpoint file
     if os.path.exists(checkpath):
         os.remove(checkpath)

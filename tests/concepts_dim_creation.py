@@ -105,7 +105,7 @@ def main():
 
             model_id = (
                 f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
-                f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{config_i.dim_concepts}_"
+                f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{len(kernel.phis)}_"
                 f"{config_i.creation_mode}_f{config_i.nvars_formulae}"
             )
             # attach to model for later reference and debugging

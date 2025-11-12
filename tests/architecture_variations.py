@@ -67,7 +67,7 @@ class ExperimentConfig:
     n_layers: int = 1
 
 
-dim_anchors = 10
+dim_anchors = 1000
 
 
 def get_anchor_items(
@@ -130,18 +130,20 @@ def main():
         trainloader.dataset, paths["phis_path_og"], config
     )
 
-    for type in ["Anchor"]:  # , 'Robs', 'RobsAsHx', 'RobsAsGx', 'NoGx', 'base']:
-        print(f"\n>>>>>>>>>>>>>>>>>>>>> type = {type} >>>>>>>>>>>>>>>>>>>>>\n")
+    for arch_type in ["Anchor", "Robs", "RobsAsHx", "RobsAsGx", "NoGx", "base"]:
+        print(
+            f"\n>>>>>>>>>>>>>>>>>>>>> arch_type = {arch_type} >>>>>>>>>>>>>>>>>>>>>\n"
+        )
         model_id = (
             f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
-            f"{config.n_layers}_bs{config.bs}_{type}"
+            f"{config.n_layers}_bs{config.bs}_{arch_type}"
         )
         # attach to model for later reference and debugging
         print(f"Model ID: {model_id}")
         model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
         args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
-        if type == "Anchor":
+        if arch_type == "Anchor":
             base_concepts, concepts, concept_embeddings, base_concepts_time = (
                 get_anchor_items(
                     kernel,
@@ -154,13 +156,13 @@ def main():
             )
             model, accuracy_results = train_test_model(
                 args,
-                type=type,
+                arch_type=arch_type,
                 concepts=concepts,
                 concept_embeddings=concept_embeddings,
             )
         else:
             base_concepts_time = 0
-            model, accuracy_results = train_test_model(args, type=type)
+            model, accuracy_results = train_test_model(args, arch_type=arch_type)
 
         args_explanations = (model_path_ev, trainloader, testloader, model, config)
 
@@ -171,7 +173,7 @@ def main():
         )
 
         result = {
-            "type": type,
+            "arch_type": arch_type,
             "concepts_time": concepts_time + base_concepts_time,
             **result_raw,
         }

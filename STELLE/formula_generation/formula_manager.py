@@ -76,7 +76,7 @@ class FormulaManager:
             )
         elif creation_mode == 1:
             if formulae_per_var is None:
-                formulae_per_var = count // self.nvars
+                formulae_per_var = round(count / self.nvars)
             return self._get_formulae_per_variable(
                 formulae_per_var,
                 min_total,
