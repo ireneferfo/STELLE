@@ -91,14 +91,19 @@ def _save_dataset_info(
 ):
     """Save dataset information to file."""
     with open(path, "w") as f:
-        f.write(f"dataname: {dataname}\n")
-        f.write(f"X_train.shape: {X_train.shape}\n")
-        f.write(f"X_val.shape: {X_val.shape}\n")
-        f.write(f"X_test.shape: {X_test.shape}\n")
-        f.write(f"num_classes: {num_classes}\n")
-        f.write(f"train_subset: {np.bincount(y_train)}\n")
-        f.write(f"val_subset: {np.bincount(y_val)}\n")
-        f.write(f"test_subset: {np.bincount(y_test)}\n")
+        lines = [
+            f"dataname: {dataname}",
+            f"X_train.shape: {X_train.shape}",
+            f"X_val.shape: {X_val.shape}",
+            f"X_test.shape: {X_test.shape}",
+            f"num_classes: {num_classes}",
+            f"train_subset: {np.bincount(y_train)}",
+            f"val_subset: {np.bincount(y_val)}",
+            f"test_subset: {np.bincount(y_test)}",
+        ]
+        for line in lines:
+            f.write(line + "\n")
+            print(line)
         
         if diff_params:
             f.write("\n=== Synthetic Data Generation Parameters ===\n")
