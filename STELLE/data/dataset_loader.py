@@ -15,8 +15,9 @@ def get_dataset(
     dataset_info_path,
 ):
     """Load and prepare dataset with train/val/test splits and dataloaders."""
+    print(f'Getting dataset {dataname}...')
     # Load raw data
-    X_train, y_train, X_test, y_test, num_classes = _load_raw_data(
+    X_train, y_train, X_test, y_test, num_classes, diff_params = _load_raw_data(
         dataname, config
     )
     
@@ -33,7 +34,7 @@ def get_dataset(
     # Save dataset information
     _save_dataset_info(
         dataset_info_path, dataname, X_train, X_val, X_test,
-        y_train, y_val, y_test, num_classes
+        y_train, y_val, y_test, num_classes, diff_params
     )
     
     # Create datasets and normalize
@@ -52,7 +53,7 @@ def get_dataset(
 def _load_raw_data(dataname, config):
     """Load raw data from synthetic generation or aeon datasets."""
     if "synthetic" in dataname:
-        X_train, y_train ,X_test, y_test, num_classes = load_data_with_difficulty(
+        X_train, y_train ,X_test, y_test, num_classes, diff_params = load_data_with_difficulty(
             dataname, config
         )
     else:
@@ -63,8 +64,9 @@ def _load_raw_data(dataname, config):
             dataname, split="test", return_metadata=True
         )
         num_classes = len(metadata["class_values"])
+        diff_params = {}
     
-    return X_train, y_train, X_test, y_test, num_classes
+    return X_train, y_train, X_test, y_test, num_classes, diff_params
 
 
 def _preprocess_data(X_train, y_train, X_test, y_test):
@@ -84,7 +86,7 @@ def _preprocess_data(X_train, y_train, X_test, y_test):
 
 def _save_dataset_info(
     path, dataname, X_train, X_val, X_test,
-    y_train, y_val, y_test, num_classes
+    y_train, y_val, y_test, num_classes, diff_params
 ):
     """Save dataset information to file."""
     with open(path, "w") as f:
@@ -96,6 +98,11 @@ def _save_dataset_info(
         f.write(f"train_subset: {np.bincount(y_train)}\n")
         f.write(f"val_subset: {np.bincount(y_val)}\n")
         f.write(f"test_subset: {np.bincount(y_test)}\n")
+        
+        if diff_params:
+            f.write("\n=== Synthetic Data Generation Parameters ===\n")
+            for key, value in diff_params.items():
+                f.write(f"{key}: {value}\n")
 
 
 def _create_normalized_datasets(

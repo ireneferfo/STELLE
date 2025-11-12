@@ -354,7 +354,7 @@ def load_data_with_difficulty(dataname: str, config: ExperimentConfig):
         
         num_classes = config.num_classes
         
-        return X_train, y_train, X_test, y_test, num_classes
+        return X_train, y_train, X_test, y_test, num_classes, diff_params
     
     else:
         # Handle other dataset types here
