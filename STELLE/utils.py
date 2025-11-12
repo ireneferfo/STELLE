@@ -56,8 +56,8 @@ def setup_paths(base_path:str, model_path:str,  args: argparse.Namespace, datana
             f'p{config.series_length}_c{config.num_classes}'
         )
     
-    results_dir = os.path.join(base_path, dataname, run_id, '/')
-    
+    results_dir = os.path.join(base_path, dataname, run_id)
+
     # Setup phis path
     if args.tempphis:
         phis_path_og = tempfile.mkdtemp()
@@ -80,7 +80,7 @@ def setup_paths(base_path:str, model_path:str,  args: argparse.Namespace, datana
     
     return {
         'results_dir': results_dir,
-        'dataset_info_path': os.path.join(results_dir, "info.txt"),
+        'dataset_info_path': results_dir + "/info.txt",
         'phis_path_og': phis_path_og,
         'model_path_og': model_path_og,
         'run_id': run_id,
