@@ -7,8 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
-
-import torch
 from time import time
 import sys
 import os
@@ -32,6 +30,7 @@ def compute_explanations(args):
     local_explanations_true_pred = []
 
     for i in ["true", "pred"]:
+        print(f'Getting local explanations ({i})...')
         explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
         compute = True
         if os.path.exists(explpath):
@@ -39,8 +38,9 @@ def compute_explanations(args):
                 with open(explpath, "rb") as f:
                     local_explanations, local_explanations_time = pickle.read(f)
                 compute = False
+                print(f'Loaded local explanations ({i}) from {explpath}')
             except Exception as e:
-                print(f"Failed to load existing local explanations - {i} ({e}).")
+                print(f"Failed to load existing local explanations ({i}) ({e}).")
         
         if compute:
             start_time = time()
@@ -67,6 +67,7 @@ def compute_explanations(args):
     local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
 
     # global
+    print('Getting global explanations...')
     globpath = model_path_ev[:-3] + "_global_explanations.pickle"
     compute = True
     if os.path.exists(globpath):
@@ -74,6 +75,7 @@ def compute_explanations(args):
             with open(globpath, "rb") as f:
                 global_explanations, global_explanations_time = pickle.read(f)
             compute = False
+            print(f'Loaded global explanations from {globpath}')
         except Exception as e:
             print(f"Failed to load existing global explanations ({e}).")
     

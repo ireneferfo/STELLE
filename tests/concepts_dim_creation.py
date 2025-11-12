@@ -9,19 +9,28 @@ from STELLE.data.dataset_loader import get_dataset
 from STELLE.explanations.explanation_utils import compute_explanations
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
 from STELLE.model.model_utils import train_test_model
-from STELLE.utils import flatten_dict, setup_environment, save_run_settings, save_results, parse_arguments, setup_paths, merge_result_dicts
+from STELLE.utils import (
+    flatten_dict,
+    setup_environment,
+    save_run_settings,
+    save_results,
+    parse_arguments,
+    setup_paths,
+    merge_result_dicts,
+)
 
 
 @dataclass
 class ExperimentConfig:
     """Configuration for experiments."""
+
     # Synthetic data parameters
     n_train: int = 100
     n_test: int = 80
     n_vars: int = 2
     series_length: int = 30
     num_classes: int = 3
-    
+
     # Fixed parameters
     seed: int = 0
     pll: int = 2
@@ -33,13 +42,13 @@ class ExperimentConfig:
     val_every_n_epochs: int = 1
     verbose: int = 1
     logging: bool = False
-    
+
     # Kernel parameters
     normalize: bool = False
     exp_kernel: bool = False
     normalize_rhotau: bool = True
     exp_rhotau: bool = True
-    
+
     # Concept parameters
     t: float = 1.0
     n_vars_formulae: int = 1
@@ -49,7 +58,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
-    
+
     # Training parameters
     d: float = 0.1
     bs: int = 32
@@ -69,24 +78,30 @@ def main():
     base_path = "tests/results/concepts_dim_creation/"
     model_path = "tests/results/concepts_checkpoints/"
     paths = setup_paths(base_path, model_path, args, args.dataset, config)
-    os.makedirs(paths['results_dir'], exist_ok=True)
-    os.makedirs(paths['model_path_og'], exist_ok=True)
-    
-    trainloader, valloader, testloader = get_dataset(args.dataset, config, paths['dataset_info_path'])
-    
+    os.makedirs(paths["results_dir"], exist_ok=True)
+    os.makedirs(paths["model_path_og"], exist_ok=True)
+
+    trainloader, valloader, testloader = get_dataset(
+        args.dataset, config, paths["dataset_info_path"]
+    )
+
     print(f"Run ID: {paths['run_id']}\n")
-    save_run_settings(paths['results_dir'], **locals())
+    save_run_settings(paths["results_dir"], **locals())
 
     results = []
-    
+
     # from here it depends from concepts details
     for dim_concepts in [10, 1000, 2000, 5000]:
-        print(f'\n>>>>>>>>>>>>> DIM CONCEPTS = {dim_concepts} >>>>>>>>>>>>>\n')
-        for creation_mode in ['one', 'all']:
-            print(f'\n>>>>>>>>>>>>> CREATION MODE = {creation_mode} >>>>>>>>>>>>>\n')
-            config_i = replace(config, dim_concepts=dim_concepts, creation_mode=creation_mode)
-            
-            kernel, concepts_time = set_kernels_and_concepts(trainloader.dataset, paths['phis_path_og'], config_i)
+        print(f"\n>>>>>>>>>>>>> DIM CONCEPTS = {dim_concepts} >>>>>>>>>>>>>\n")
+        for creation_mode in ["one", "all"]:
+            print(f"\n>>>>>>>>>>>>> CREATION MODE = {creation_mode} >>>>>>>>>>>>>\n")
+            config_i = replace(
+                config, dim_concepts=dim_concepts, creation_mode=creation_mode
+            )
+
+            kernel, _, concepts_time = set_kernels_and_concepts(
+                trainloader.dataset, paths["phis_path_og"], config_i
+            )
 
             model_id = (
                 f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
@@ -95,27 +110,35 @@ def main():
             )
             # attach to model for later reference and debugging
             print(f"Model ID: {model_id}")
-            model_path_ev = os.path.join(paths['model_path_og'], f"{model_id}.pt")
+            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
             args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
             model, accuracy_results = train_test_model(args)
 
-            args_explanations = (model_path_ev, trainloader, testloader, model, config_i)
+            args_explanations = (
+                model_path_ev,
+                trainloader,
+                testloader,
+                model,
+                config_i,
+            )
             local_metrics, global_metrics = compute_explanations(args_explanations)
-            
-            result_raw = merge_result_dicts([accuracy_results, local_metrics, global_metrics])
-            
+
+            result_raw = merge_result_dicts(
+                [accuracy_results, local_metrics, global_metrics]
+            )
+
             result = {
-                'dim_concepts': config_i.dim_concepts,
-                'creation_mode': config_i.creation_mode,
-                'concepts_time': round(concepts_time,3),
-                **result_raw
+                "dim_concepts": config_i.dim_concepts,
+                "creation_mode": config_i.creation_mode,
+                "concepts_time": round(concepts_time, 3),
+                **result_raw,
             }
-            
+
             result = flatten_dict(result)
             results.append(result)
-            
-            save_results(results, paths['results_dir'])
+
+            save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":

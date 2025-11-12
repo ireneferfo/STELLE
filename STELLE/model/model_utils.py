@@ -19,6 +19,7 @@ def train_test_model(args, type: str = 'base', **kwargs):
     # Try loading existing model
     loaded = _load_model(model_path_ev, device)
     if loaded:
+        print(f'Loaded existing model from {model_path_ev}.')
         model, bestepoch, traintime, testresults, testtime = loaded
     else:
         # Create and train new model

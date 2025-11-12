@@ -26,12 +26,14 @@ def set_kernels_and_concepts(
     # Setup paths
     phis_path = _create_concepts_path(phis_path_og, creation_mode, n_vars_formulae, n_vars, config.t)
     
+    print('Setting kernels...')
     # Initialize components
     mu = BaseMeasure(device=device)
     sampler = STLFormulaGenerator(max_variables=n_vars_formulae)
     stlkernel = _create_stl_kernel(mu, n_vars, config.samples, config.normalize, config.exp_kernel)
     kernel = _create_trajectory_kernel(mu, config)
     
+    print(f'Getting {config.dim_concepts} concepts with {config.t=} and {config.creation_mode=}...')
     # Generate and scale concepts
     formula_manager = FormulaManager(
         n_vars, sampler, stlkernel, config.pll, config.t, n_vars_formulae, device=device

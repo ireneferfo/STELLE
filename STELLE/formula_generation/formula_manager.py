@@ -122,6 +122,7 @@ class FormulaManager:
 
         if existing_data:
             formulae, robustness, selfk = existing_data
+            print(f"Found {len(formulae)} exisiting formulae at {formulae_file}.")
             total_time = self._get_cached_time(formulae_type, len(formulae))
 
             if len(formulae) == target_count:
@@ -143,6 +144,7 @@ class FormulaManager:
                     batch_size,
                 )
         else:
+            print(f"Didn't find any exisiting formulae at {formulae_file}. Generating them.")
             return self._generate_new_formulae(
                 target_count,
                 creation_mode,
