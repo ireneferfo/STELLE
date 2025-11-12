@@ -31,7 +31,7 @@ def set_kernels_and_concepts(train_subset, phis_path_og, config):
     mu = BaseMeasure(device=device)
     sampler = STLFormulaGenerator(max_variables=nvars_formulae)
     stlkernel = _create_stl_kernel(
-        mu, nvars, config.samples, config.normalize, config.exp_kernel
+        mu, nvars, config.samples, config.normalize_kernel, config.exp_kernel
     )
     kernel = _create_trajectory_kernel(mu, config)
 
@@ -109,7 +109,7 @@ def _create_trajectory_kernel(mu, config):
         varn=config.nvars,
         points=config.series_length,
         samples=config.samples,
-        normalize=config.normalize,
+        normalize=config.normalize_kernel,
         exp_kernel=config.exp_kernel,
         exp_rhotau=config.exp_rhotau,
         normalize_rhotau=config.normalize_rhotau,
