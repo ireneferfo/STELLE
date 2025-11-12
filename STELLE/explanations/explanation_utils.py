@@ -37,7 +37,7 @@ def compute_explanations(args, globals = False, **kwargs):
         if os.path.exists(explpath):
             try:
                 with open(explpath, "rb") as f:
-                    local_explanations, local_explanations_time = pickle.read(f)
+                    local_explanations, local_explanations_time = pickle.load(f)
                 compute = False
                 print(f'Loaded local explanations ({i}) from {explpath}')
             except Exception as e:
@@ -88,7 +88,7 @@ def compute_explanations(args, globals = False, **kwargs):
         if os.path.exists(globpath):
             try:
                 with open(globpath, "rb") as f:
-                    global_explanations, global_explanations_time = pickle.read(f)
+                    global_explanations, global_explanations_time = pickle.load(f)
                 compute = False
                 print(f'Loaded global explanations from {globpath}')
             except Exception as e:
