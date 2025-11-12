@@ -98,7 +98,7 @@ def main():
             config, normalize_kernel=i, exp_kernel=j, normalize_rhotau=k, exp_rhotau=l
         )
 
-        kernel, _ = set_kernels_and_concepts(
+        kernel, _, _ = set_kernels_and_concepts(
             trainloader.dataset, paths["phis_path_og"], config_i
         )
 

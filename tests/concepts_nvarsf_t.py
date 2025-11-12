@@ -25,8 +25,8 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 50
-    n_test: int = 15
+    n_train: int = 500
+    n_test: int = 100
     nvars: int = 5
     series_length: int = 100
     num_classes: int = 3
@@ -35,12 +35,12 @@ class ExperimentConfig:
     seed: int = 0
     pll: int = 8
     workers: int = 2
-    samples: int = 500
-    epochs: int = 3
+    samples: int = 5000
+    epochs: int = 3000
     cf: int = 300
     patience: int = 10
     val_every_n_epochs: int = 1
-    verbose: int = 100
+    verbose: int = 20
     logging: bool = False
 
     # Kernel parameters
@@ -53,8 +53,8 @@ class ExperimentConfig:
     t: float = 1.0
     nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 22
-    min_total: int = 9
+    dim_concepts: int = 1000
+    min_total: int = 100
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
@@ -93,7 +93,7 @@ def main():
     # from here it depends from concepts details
     for nvars_formulae in [1, 2, 3]:
         print(f"\n>>>>>>>>>>>>> N VARS FORMULAE = {nvars_formulae} >>>>>>>>>>>>>\n")
-        for t in [1, 0.99, 0.97, 0.95]:
+        for t in [1, 0.99, 0.98, 0.97, 0.96, 0.95]:
             print(f"\n>>>>>>>>>>>>> T = {t} >>>>>>>>>>>>>\n")
             config_i = replace(config, nvars_formulae=nvars_formulae, t=t)
 
@@ -127,7 +127,8 @@ def main():
             )
 
             result = {
-                "dim_concepts": config_i.dim_concepts,
+                "nvars_formulae": config_i.nvars_formulae,
+                "t": config_i.t,
                 "creation_mode": config_i.creation_mode,
                 "concepts_time": round(concepts_time, 3),
                 **result_raw,
