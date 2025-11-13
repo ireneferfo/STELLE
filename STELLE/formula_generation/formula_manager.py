@@ -126,7 +126,11 @@ class FormulaManager:
         # existing_data = self._try_load_existing_formulae(formulae_file)
 
         if existing_data:
-            formulae, robustness, selfk, total_time = existing_data
+            if len(existing_data) == 4:
+                formulae, robustness, selfk, total_time = existing_data
+            elif len(existing_data) == 3:
+                formulae, robustness, selfk = existing_data
+                total_time = 0
             print(f"Found {len(formulae)} exisiting formulae at {file_path}.")
 
             if len(formulae) == target_count:
