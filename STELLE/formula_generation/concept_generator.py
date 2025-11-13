@@ -275,14 +275,12 @@ class ConceptGenerator:
         return_robustness: bool,
     ) -> Tuple[List, torch.Tensor]:
         """Generate formulae with cosine similarity filtering."""
-        print(f'_generate_with_filtering input: {current_robustness.shape=}')
         while len(current_formulae) < target_dim:
             remaining = target_dim - len(current_formulae)
             batch = min(batch_size, remaining)
 
             # Generate candidate formulae
             candidates = self._generate_candidate_batch(batch)
-            # print(f'{candidates=}')
             if not candidates:
                 continue
 
@@ -300,12 +298,10 @@ class ConceptGenerator:
                 promote_simple,
                 current_formulae,
             )
-            # print(f'_generate_with_filtering: {candidate_robustness.shape=}')
 
             # Add filtered candidates
             keep_formulae = [candidates[i] for i in keep_indices]
             keep_robustness = candidate_robustness[keep_indices]
-            # print(f'_generate_with_filtering: {keep_robustness.shape=}')
 
             current_formulae.extend(keep_formulae)
             current_robustness = torch.cat([current_robustness, keep_robustness], dim=0)

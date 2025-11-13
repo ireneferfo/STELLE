@@ -6,7 +6,7 @@ import operator
 import re
 import math
 import multiprocessing as mp
-from itertools import repeat, permutations
+from itertools import repeat
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import tqdm

@@ -236,11 +236,9 @@ class FormulaManager:
         output_path: str,
     ) -> Tuple[List, torch.Tensor, torch.Tensor, float]:
         """Subset existing formulae to target count."""
-        print(f'before: {robustness.shape=}, {selfk.shape=}')
         formulae = formulae[:target_count]
         robustness = robustness[:target_count, :self.samples, :]
         selfk = selfk[:self.samples, :]
-        print(f'after: {robustness.shape=}, {selfk.shape=}')
 
         # # Save subset (DON'T ITS FAST TO COMPUTE)
         # with open(output_path, "wb") as f:

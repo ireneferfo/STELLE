@@ -35,6 +35,7 @@ warnings.filterwarnings(
 
 N_TRIALS = 3
 
+# TODO aggiustare paths
 
 @dataclass
 class ExperimentConfig:
