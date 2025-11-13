@@ -84,7 +84,7 @@ def main():
     )
 
     print(f"Run ID: {paths['run_id']}\n")
-    save_run_settings(paths["results_dir"], **locals())
+    save_run_settings(paths["results_dir"], config, **locals())
 
     results = []
 

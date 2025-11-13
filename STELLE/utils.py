@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import numpy as np
 import os
 import random
@@ -142,10 +143,16 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def save_run_settings(results_dir, **kwargs):
-    constants = {**kwargs}
+def save_run_settings(results_dir, config, **kwargs):
+    """Save run settings including ExperimentConfig and additional kwargs."""
+    # Convert dataclass to dict
+    config_dict = asdict(config)
+    
+    # Combine config and kwargs
+    constants = {**config_dict, **kwargs}
+    
     info_file_path = results_dir + "/run_info.txt"
-
+    
     # Filter out non-serializable objects
     serializable_constants = {}
     for key, value in constants.items():
@@ -153,9 +160,8 @@ def save_run_settings(results_dir, **kwargs):
             json.dumps(value)  # Test if serializable
             serializable_constants[key] = value
         except (TypeError, ValueError):
-            # Skip non-serializable objects
             serializable_constants[key] = f"<{type(value).__name__} - not serializable>"
-
+    
     with open(info_file_path, "w") as file:
         file.write(json.dumps(serializable_constants, indent=2))
 

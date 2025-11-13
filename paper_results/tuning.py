@@ -16,19 +16,25 @@ from STELLE.utils import (
     save_results,
     parse_arguments,
     setup_paths,
-    flatten_dict
+    flatten_dict,
 )
 import warnings
 from ax.exceptions.core import AxParameterWarning
 from sqlalchemy.exc import SAWarning
+
 warnings.filterwarnings("ignore", category=UserWarning, module="ax.adapter.base")
-warnings.filterwarnings("ignore", category=AxParameterWarning, message=".*sort_values.*")
+warnings.filterwarnings(
+    "ignore", category=AxParameterWarning, message=".*sort_values.*"
+)
 warnings.filterwarnings("ignore", category=AxParameterWarning, message=".*is_ordered.*")
-os.environ['SQLALCHEMY_WARN_20'] = '0'
-warnings.filterwarnings("ignore", category=SAWarning, message=".*TypeDecorator.*cache_ok.*")
+os.environ["SQLALCHEMY_WARN_20"] = "0"
+warnings.filterwarnings(
+    "ignore", category=SAWarning, message=".*TypeDecorator.*cache_ok.*"
+)
 
 
 N_TRIALS = 3
+
 
 @dataclass
 class ExperimentConfig:
@@ -97,8 +103,8 @@ class HyperparameterOptimizer:
         self.base_config = base_config
         self.dataset_name = dataset_name
         self.n_trials = n_trials
-        self.base_path = paths['results_dir']
-        self.model_path = paths['model_path_og']
+        self.base_path = paths["results_dir"]
+        self.model_path = paths["model_path_og"]
         self.paths = paths
 
         # Early stopping parameters
@@ -123,7 +129,7 @@ class HyperparameterOptimizer:
                 "bounds": [1e-7, 1e-2],
                 "log_scale": True,
                 "value_type": "float",
-                'digits': 7
+                "digits": 7,
             },
             {
                 "name": "bs",
@@ -148,21 +154,21 @@ class HyperparameterOptimizer:
                 "type": "range",
                 "bounds": [0.0, 0.4],
                 "value_type": "float",
-                "digits": 1
+                "digits": 1,
             },
             {
                 "name": "init_crel",
                 "type": "range",
                 "bounds": [1.0, 10.0],
                 "value_type": "float",
-                'digits': 1
+                "digits": 1,
             },
             {
                 "name": "init_eps",
                 "type": "range",
                 "bounds": [0.1, 2.0],
                 "value_type": "float",
-                'digits': 1
+                "digits": 1,
             },
             # Activation function
             {
@@ -255,8 +261,9 @@ class HyperparameterOptimizer:
         # args_explanations = (model_path_ev, trainloader, testloader, model, config)
         # local_metrics, global_metrics = compute_explanations(args_explanations)
 
-
-        print(f"Trial completed: Test Accuracy = {accuracy_results.get('accuracy', 0.0)}")
+        print(
+            f"Trial completed: Test Accuracy = {accuracy_results.get('accuracy', 0.0)}"
+        )
         return flatten_dict(accuracy_results)
 
         # except Exception as e:
@@ -292,7 +299,7 @@ class HyperparameterOptimizer:
             return False
 
         # Get recent best accuracies
-        recent_best = self.best_accuracy_history[-self.early_stopping_patience:]
+        recent_best = self.best_accuracy_history[-self.early_stopping_patience :]
 
         # Check if improvement is below threshold
         max_recent = max(recent_best)
@@ -442,15 +449,15 @@ def main():
     """Main execution function."""
     args = parse_arguments()
     base_config = ExperimentConfig()
-    base_path = ''
-    model_path = ''
+    base_path = ""
+    model_path = ""
     paths = setup_paths(base_path, model_path, args, args.dataset, base_config)
     # Configure optimization
     optimizer = HyperparameterOptimizer(
         base_config=base_config,
         dataset_name=args.dataset,
         n_trials=N_TRIALS,  # Maximum number of trials
-        paths = paths,
+        paths=paths,
         early_stopping_patience=10,  # Stop if no improvement for 10 trials
         early_stopping_threshold=1e-4,  # Minimum improvement required (0.01%)
         min_trials=20,  # Minimum trials before early stopping can trigger
