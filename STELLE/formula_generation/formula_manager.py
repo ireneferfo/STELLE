@@ -107,6 +107,7 @@ class FormulaManager:
             Tuple of (formulae, robustness_vectors, self_kernels, total_time)
         """
         self._validate_inputs(formulae_type)
+        self.batch_size = batch_size
 
         os.makedirs(output_directory, exist_ok=True)
 
@@ -134,6 +135,7 @@ class FormulaManager:
             print(f"Found {len(formulae)} exisiting formulae at {file_path}.")
 
             if len(formulae) == target_count:
+                robustness, selfk = self._validate_robustness(formulae, robustness, selfk, total_time, file_path)
                 return formulae, robustness, selfk, total_time
             elif len(formulae) > target_count:
                 return self._subset_formulae(
@@ -197,6 +199,20 @@ class FormulaManager:
         if formulae_type not in {"anchors", "concepts"}:
             raise ValueError("formulae_type must be 'anchors' or 'concepts'")
 
+    def _validate_robustness(self, formulae, robustness, selfk, total_time, output_path):
+        loaded_samples = robustness.shape[1]
+        if loaded_samples == self.samples:
+            return robustness, selfk
+        if loaded_samples > self.samples:
+            print(f"Samples in existing formulae ({loaded_samples}) > requested samples ({self.samples}). Subsetting.")
+            return robustness[:, :self.samples, :], selfk[:self.samples, :]
+        if loaded_samples < self.samples:
+            print(f"Samples in existing formulae ({loaded_samples}) < requested samples ({self.samples}). Recomputing robustness and overwriting.")
+            robustness, selfk = self._compute_batched_robustness(formulae, self.batch_size)
+            with open(output_path, "wb") as f:
+                torch.save((formulae, robustness, selfk, total_time), f)
+            return robustness, selfk
+    
     def _try_load_existing_formulae(self, file_path: str) -> Optional[Tuple]:
         """Try to load existing formulae from file."""
         if not os.path.exists(file_path):
@@ -220,9 +236,11 @@ class FormulaManager:
         output_path: str,
     ) -> Tuple[List, torch.Tensor, torch.Tensor, float]:
         """Subset existing formulae to target count."""
+        print(f'before: {robustness.shape=}, {selfk.shape=}')
         formulae = formulae[:target_count]
-        robustness = robustness[:target_count]
-        selfk = selfk[:target_count]
+        robustness = robustness[:target_count, :self.samples, :]
+        selfk = selfk[:self.samples, :]
+        print(f'after: {robustness.shape=}, {selfk.shape=}')
 
         # # Save subset (DON'T ITS FAST TO COMPUTE)
         # with open(output_path, "wb") as f:
@@ -303,6 +321,7 @@ class FormulaManager:
         with open(output_path, "wb") as f:
             torch.save((combined_formulae, combined_robustness, combined_selfk, total_time), f)
 
+
         print(f"Extended to {len(combined_formulae)} formulae")
         return combined_formulae, combined_robustness, combined_selfk, total_time
 
@@ -335,7 +354,6 @@ class FormulaManager:
 
         # Compute robustness
         if "robustness" not in locals():
-
             robustness, selfk = self._compute_batched_robustness(formulae, batch_size)
         else:
             selfk = self.stl_kernel._get_selfk(robustness)
@@ -528,7 +546,7 @@ class FormulaManager:
             signal_samples=self.samples
         )
 
-        formulae, robustness =  generator.generate_concepts(
+        formulae, robustness = generator.generate_concepts(
             target_dim=len(existing_formulae) + count,
             cosine_threshold=self.cosine_threshold,
             output_path=output_directory,
@@ -536,8 +554,8 @@ class FormulaManager:
             initial_formulae=existing_formulae,
             initial_robustness=existing_robustness,
             return_robustness=True,
-
         )
+
         return formulae[len(existing_formulae):], robustness[len(existing_formulae):]
 
     def _compute_batched_robustness(

@@ -275,12 +275,14 @@ class ConceptGenerator:
         return_robustness: bool,
     ) -> Tuple[List, torch.Tensor]:
         """Generate formulae with cosine similarity filtering."""
+        print(f'_generate_with_filtering input: {current_robustness.shape=}')
         while len(current_formulae) < target_dim:
             remaining = target_dim - len(current_formulae)
             batch = min(batch_size, remaining)
 
             # Generate candidate formulae
             candidates = self._generate_candidate_batch(batch)
+            # print(f'{candidates=}')
             if not candidates:
                 continue
 
@@ -288,6 +290,7 @@ class ConceptGenerator:
             candidate_robustness = self._compute_robustness_vectors(
                 candidates, self.signals, normalize_robustness
             )
+            
 
             # Filter candidates by cosine similarity
             keep_indices = self._filter_by_cosine_similarity(
@@ -297,15 +300,15 @@ class ConceptGenerator:
                 promote_simple,
                 current_formulae,
             )
+            # print(f'_generate_with_filtering: {candidate_robustness.shape=}')
 
             # Add filtered candidates
-            self._add_filtered_candidates(
-                candidates,
-                candidate_robustness,
-                keep_indices,
-                current_formulae,
-                current_robustness,
-            )
+            keep_formulae = [candidates[i] for i in keep_indices]
+            keep_robustness = candidate_robustness[keep_indices]
+            # print(f'_generate_with_filtering: {keep_robustness.shape=}')
+
+            current_formulae.extend(keep_formulae)
+            current_robustness = torch.cat([current_robustness, keep_robustness], dim=0)
 
             # Clean up memory
             self._cleanup_memory(candidate_robustness)
@@ -400,21 +403,6 @@ class ConceptGenerator:
                 normalize(candidate_robustness) @ normalize(current_robustness).t(),
                 diagonal=-1,
             )
-
-    def _add_filtered_candidates(
-        self,
-        candidates: List,
-        candidate_robustness: torch.Tensor,
-        keep_indices: List[int],
-        current_formulae: List,
-        current_robustness: torch.Tensor,
-    ) -> None:
-        """Add filtered candidates to the current set."""
-        keep_formulae = [candidates[i] for i in keep_indices]
-        keep_robustness = candidate_robustness[keep_indices]
-
-        current_formulae.extend(keep_formulae)
-        current_robustness = torch.cat([current_robustness, keep_robustness], dim=0)
 
     def _cleanup_memory(self, *tensors) -> None:
         """Clean up GPU memory and garbage collect."""
