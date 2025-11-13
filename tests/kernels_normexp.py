@@ -76,8 +76,8 @@ def main():
     args = parse_arguments()
     config = ExperimentConfig()
     device = setup_environment(config.seed)
-    base_path = "ablation_tests/results/kernels_normexp/"
-    model_path = "ablation_tests/results/kernel_checkpoints/"
+    base_path = "tests/results/kernels_normexp/"
+    model_path = "tests/results/kernel_checkpoints/"
     paths = setup_paths(base_path, model_path, args, args.dataset, config)
     os.makedirs(paths["results_dir"], exist_ok=True)
     os.makedirs(paths["model_path_og"], exist_ok=True)
