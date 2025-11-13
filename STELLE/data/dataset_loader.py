@@ -101,10 +101,11 @@ def _save_dataset_info(
             f"val_subset: {np.bincount(y_val)}",
             f"test_subset: {np.bincount(y_test)}",
         ]
+        print()
         for line in lines:
             f.write(line + "\n")
             print(line)
-        
+        print()
         if diff_params:
             f.write("\n=== Synthetic Data Generation Parameters ===\n")
             for key, value in diff_params.items():

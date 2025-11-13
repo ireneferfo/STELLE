@@ -320,9 +320,9 @@ class BaseConceptModel(nn.Module, ABC):
 
         return torch.stack(
             [
-                torch.abs(robs.to(self.device) - self.robs_mean[l].to(self.device))
-                * invstd[l]
-                for l in range(self.num_classes)
+                torch.abs(robs.to(self.device) - self.robs_mean[c].to(self.device))
+                * invstd[c]
+                for c in range(self.num_classes)
             ],
             dim=-1,
         )
@@ -498,7 +498,7 @@ class BaseConceptModel(nn.Module, ABC):
             if self._should_validate(valloader, epoch, val_every_n_epochs):
                 val_metrics = self.validate(valloader)
 
-                if self._update_best_state(val_metrics["loss"], best_state):
+                if self._update_best_state(val_metrics["avg_valloss"], best_state):
                     best_state["best_model_state"] = self.state_dict()
                     best_state["best_epoch"] = epoch
 
@@ -689,7 +689,7 @@ class BaseConceptModel(nn.Module, ABC):
             f"Epoch {epoch+1}, "
             f"train loss: {train_metrics['loss']:.5f}, "
             f"train acc: {train_metrics['weighted_acc']:.2f}%, "
-            f"val loss: {val_metrics['loss']:.5f}, "
+            f"val loss: {val_metrics['avg_valloss']:.5f}, "
             f"val acc: {val_metrics['weighted_acc']:.2f}%"
         )
 
@@ -758,7 +758,7 @@ class BaseConceptModel(nn.Module, ABC):
             "weighted_acc": weighted_acc,
             "sensitivity": sensitivity,
             "specificity": specificity,
-            "loss": avg_loss,
+            "avg_valloss": avg_loss,
         }
 
     # ========================================================================
