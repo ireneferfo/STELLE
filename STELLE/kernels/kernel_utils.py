@@ -7,7 +7,6 @@ from ..utils import get_device
 from .base_measure import BaseMeasure
 from .stl_kernel import StlKernel
 from .trajectory_kernel import TrajectoryKernel
-from ..formula_generation.stl_generator import STLFormulaGenerator
 from ..formula_generation.formula_manager import FormulaManager
 
 
@@ -29,7 +28,6 @@ def set_kernels_and_concepts(train_subset, phis_path_og, config):
     print("Setting kernels...")
     # Initialize components
     mu = BaseMeasure(device=device)
-    sampler = STLFormulaGenerator(max_variables=nvars_formulae)
     stlkernel = _create_stl_kernel(
         mu, nvars, config.samples, config.normalize_kernel, config.exp_kernel
     )
@@ -40,7 +38,7 @@ def set_kernels_and_concepts(train_subset, phis_path_og, config):
     )
     # Generate and scale concepts
     formula_manager = FormulaManager(
-        nvars, sampler, stlkernel, config.pll, config.t, nvars_formulae, device=device
+        nvars, stlkernel, config.pll, config.t, nvars_formulae, device=device
     )
 
     concepts, rhos1, selfk1, total_time = formula_manager.get_formulae(

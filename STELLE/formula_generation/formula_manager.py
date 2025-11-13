@@ -5,13 +5,13 @@ Formula Manager - Handles loading, saving, and managing STL formulae with cachin
 import torch
 import os
 import gc
+import re
 from time import time
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple
 
 from ..utils import get_device
 from ..kernels.stl_kernel import StlKernel
 from .concept_generator import ConceptGenerator
-from .stl_generator import STLFormulaGenerator
 from .formula_utils import (
     compute_permutations,
     get_unique_variables,
@@ -30,7 +30,6 @@ class FormulaManager:
     def __init__(
         self,
         nvars: int,
-        sampler: STLFormulaGenerator,
         stl_kernel: StlKernel,
         parallel_workers: int,
         cosine_threshold: float = 1.0,
@@ -50,14 +49,11 @@ class FormulaManager:
         self.nvars = nvars
         self.nvars_formulae = nvars_formulae
         self.points = points
-        self.sampler = sampler
+        self.samples = stl_kernel.samples
         self.stl_kernel = stl_kernel
         self.parallel_workers = parallel_workers
         self.cosine_threshold = cosine_threshold
         self.device = device or get_device()
-
-        self._times_cache: Dict[str, float] = {}
-        self._load_times_cache()
 
     def get_formulae(
         self,
@@ -114,28 +110,37 @@ class FormulaManager:
 
         os.makedirs(output_directory, exist_ok=True)
 
-        # Try to load existing formulae
-        formulae_file = os.path.join(
-            output_directory, f"{formulae_type}_{target_count}.pickle"
-        )
-        existing_data = self._try_load_existing_formulae(formulae_file)
+        # Find all matching files in the directory
+        matching_files = _find_matching_files(output_directory, formulae_type)
+        
+        # Find the best matching file
+        best_match = _find_best_matching_file(matching_files, target_count) if matching_files else None
+        existing_data = None
+        if best_match:
+            file_count, file_path = best_match
+            existing_data = self._try_load_existing_formulae(file_path)
+        # # Try to load existing formulae
+        # formulae_file = os.path.join(
+        #     output_directory, f"{formulae_type}_{target_count}.pickle"
+        # )
+        # existing_data = self._try_load_existing_formulae(formulae_file)
 
         if existing_data:
-            formulae, robustness, selfk = existing_data
-            print(f"Found {len(formulae)} exisiting formulae at {formulae_file}.")
-            total_time = self._get_cached_time(formulae_type, len(formulae))
+            formulae, robustness, selfk, total_time = existing_data
+            print(f"Found {len(formulae)} exisiting formulae at {file_path}.")
 
             if len(formulae) == target_count:
                 return formulae, robustness, selfk, total_time
             elif len(formulae) > target_count:
                 return self._subset_formulae(
-                    formulae, robustness, selfk, target_count, formulae_file
+                    formulae, robustness, selfk, target_count, file_path
                 )
             else:
                 return self._extend_formulae(
                     formulae,
                     robustness,
                     selfk,
+                    total_time,
                     target_count,
                     creation_mode,
                     output_directory,
@@ -143,11 +148,10 @@ class FormulaManager:
                     formulae_type,
                     batch_size,
                 )
-        else:
-            print(
-                f"Didn't find any exisiting formulae at {formulae_file}. Generating them."
-            )
-            return self._generate_new_formulae(
+        print(
+            f"Didn't find any exisiting formulae at {output_directory}. Generating them."
+        )
+        return self._generate_new_formulae(
                 target_count,
                 creation_mode,
                 output_directory,
@@ -189,16 +193,6 @@ class FormulaManager:
         if formulae_type not in {"anchors", "concepts"}:
             raise ValueError("formulae_type must be 'anchors' or 'concepts'")
 
-    def _load_times_cache(self) -> None:
-        """Load timing information from cache file."""
-        # This would load from a CSV file - implementation depends on your specific needs
-        pass
-
-    def _get_cached_time(self, formulae_type: str, count: int) -> float:
-        """Get cached generation time for formulae."""
-        key = f"{formulae_type}_{count}"
-        return self._times_cache.get(key, 0.0)
-
     def _try_load_existing_formulae(self, file_path: str) -> Optional[Tuple]:
         """Try to load existing formulae from file."""
         if not os.path.exists(file_path):
@@ -226,9 +220,9 @@ class FormulaManager:
         robustness = robustness[:target_count]
         selfk = selfk[:target_count]
 
-        # Save subset
-        with open(output_path, "wb") as f:
-            torch.save((formulae, robustness, selfk), f)
+        # # Save subset (DON'T ITS FAST TO COMPUTE)
+        # with open(output_path, "wb") as f:
+        #     torch.save((formulae, robustness, selfk, 0.0), f)
 
         print(f"Subsetted to {len(formulae)} formulae")
         return formulae, robustness, selfk, 0.0
@@ -238,6 +232,7 @@ class FormulaManager:
         existing_formulae: List,
         existing_robustness: torch.Tensor,
         existing_selfk: torch.Tensor,
+        existing_time: float, 
         target_count: int,
         creation_mode: int,
         output_directory: str,
@@ -250,6 +245,7 @@ class FormulaManager:
         start_time = time()
 
         if creation_mode == 1:
+            print(f'\n_extend_formulae {existing_robustness.shape=}')
             new_formulae = self._generate_with_variable_permutation(
                 existing_formulae,
                 existing_robustness,
@@ -294,15 +290,14 @@ class FormulaManager:
         output_path = os.path.join(
             output_directory, f"{formulae_type}_{target_count}.pickle"
         )
-        with open(output_path, "wb") as f:
-            torch.save((combined_formulae, combined_robustness, combined_selfk), f)
 
         total_time = (
             time()
             - start_time
-            + self._get_cached_time(formulae_type, len(existing_formulae))
+            + existing_time
         )
-        self._update_time_cache(formulae_type, target_count, total_time)
+        with open(output_path, "wb") as f:
+            torch.save((combined_formulae, combined_robustness, combined_selfk, total_time), f)
 
         print(f"Extended to {len(combined_formulae)} formulae")
         return combined_formulae, combined_robustness, combined_selfk, total_time
@@ -326,7 +321,7 @@ class FormulaManager:
             )
         else:
             if self.cosine_threshold == 1.0:
-                formulae, _ = self._generate_simple_formulae(
+                formulae = self._generate_simple_formulae(
                     target_count, output_directory, seed, batch_size
                 )
             else:
@@ -345,11 +340,10 @@ class FormulaManager:
         output_path = os.path.join(
             output_directory, f"{formulae_type}_{target_count}.pickle"
         )
-        with open(output_path, "wb") as f:
-            torch.save((formulae, robustness, selfk), f)
-
         total_time = time() - start_time
-        self._update_time_cache(formulae_type, target_count, total_time)
+
+        with open(output_path, "wb") as f:
+            torch.save((formulae, robustness, selfk, total_time), f)
 
         return formulae, robustness, selfk, total_time
 
@@ -425,10 +419,11 @@ class FormulaManager:
 
         # Step 3: If we still need more formulae, create new templates
         generator = ConceptGenerator(
-            nvars=self.nvars,
+            nvars=self.nvars_formulae,
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,
+            signal_samples=self.samples
         )
 
         while remaining > 0:
@@ -474,8 +469,8 @@ class FormulaManager:
             #     get_robs=True if t < 1 else False,  # kicks in only with t < 1,
             #     batch_size = batch_size,
             # )
-            base_formula, base_rho = base_formula
             if self.cosine_threshold < 1:
+                base_formula, base_rho = base_formula
                 base_rho = base_rho[len(existing_formulae_0) :]
                 existing_rhos_0.extend(base_rho)
                 base_formula = base_formula[len(existing_formulae_0) :]
@@ -500,6 +495,7 @@ class FormulaManager:
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,
+            signal_samples=self.samples
         )
 
         return generator.generate_concepts(
@@ -525,9 +521,10 @@ class FormulaManager:
             nvars_formulae=self.nvars_formulae,
             device=self.device,
             seed=seed,
+            signal_samples=self.samples
         )
 
-        return generator.generate_concepts(
+        formulae, robustness =  generator.generate_concepts(
             target_dim=len(existing_formulae) + count,
             cosine_threshold=self.cosine_threshold,
             output_path=output_directory,
@@ -535,7 +532,9 @@ class FormulaManager:
             initial_formulae=existing_formulae,
             initial_robustness=existing_robustness,
             return_robustness=True,
+
         )
+        return formulae[len(existing_formulae):], robustness[len(existing_formulae):]
 
     def _compute_batched_robustness(
         self,
@@ -552,7 +551,7 @@ class FormulaManager:
 
             end_idx = start_idx + batch_size
             formula_batch = formulae[start_idx:end_idx]
-
+            
             robustness_batch, selfk_batch = self.stl_kernel._compute_robustness(
                 formula_batch, self.parallel_workers
             )
@@ -565,10 +564,32 @@ class FormulaManager:
 
         return robustness, selfk
 
-    def _update_time_cache(
-        self, formulae_type: str, count: int, time_val: float
-    ) -> None:
-        """Update the time cache with new timing information."""
-        key = f"{formulae_type}_{count}"
-        self._times_cache[key] = time_val
-        # This would also save to a CSV file in a real implementation
+
+def _find_matching_files(dir_path: str, formulae_type: str) -> Optional[List[Tuple[int, str]]]:
+    """Find all files matching the formulae_type pattern and extract their dimensions."""
+    matching_files = []
+    pattern = f"{formulae_type}_(\d+).pickle"
+    try:
+        for fname in os.listdir(dir_path):
+            match = re.fullmatch(pattern, fname)
+            if match:
+                dim = int(match.group(1))
+                matching_files.append((dim, os.path.join(dir_path, fname)))
+        return sorted(matching_files, key=lambda x: x[0]) if matching_files else None
+    except:  # noqa: E722
+        return None
+
+
+def _find_best_matching_file(
+    matching_files: List[Tuple[int, str]], target_count: int
+) -> Optional[Tuple[int, str]]:
+    """Find the best matching file (exact > larger > smaller)."""
+    exact_match = next((f for f in matching_files if f[0] == target_count), None)
+    if exact_match:
+        return exact_match
+    
+    larger_file = next((f for f in matching_files if f[0] > target_count), None)
+    if larger_file:
+        return larger_file
+    
+    return matching_files[-1] if matching_files else None

@@ -36,6 +36,8 @@ class ConceptGenerator:
         max_nodes: int = 5,
         device: str = "cpu",
         seed: int = 0,
+        signal_samples: int = 10000,
+
     ):
         """
         Initialize the concept generator.
@@ -64,6 +66,8 @@ class ConceptGenerator:
         )
 
         self._set_random_seeds(seed)
+        self.signals = self._get_signals(signal_samples)
+
 
     def _set_random_seeds(self, seed: int) -> None:
         """Set random seeds for reproducibility."""
@@ -85,8 +89,6 @@ class ConceptGenerator:
         output_path: Optional[str] = None,
         enable_checkpoints: bool = False,
         batch_size: int = 1000,
-        signal_samples: int = 10000,
-        signals: Optional[torch.Tensor] = None,
         initial_formulae: Optional[List] = None,
         initial_robustness: Optional[torch.Tensor] = None,
         normalize_robustness: bool = False,
@@ -129,14 +131,13 @@ class ConceptGenerator:
             enable_checkpoints,
             initial_formulae,
             initial_robustness,
-            signals,
-            signal_samples,
             normalize_robustness,
         )
-
+        
         # Handle trivial case where no filtering is needed
         if cosine_threshold == 1.0:
-            return self._generate_without_filtering(target_dim, output_path)
+            out=  self._generate_without_filtering(target_dim, output_path)
+            return out if return_robustness else out[0]
 
         # Main generation loop with cosine similarity filtering
         formulae, robustness_vectors = self._generate_with_filtering(
@@ -146,13 +147,12 @@ class ConceptGenerator:
             output_path,
             enable_checkpoints,
             batch_size,
-            signal_samples,
-            signals,
             formulae,
             robustness_vectors,
             normalize_robustness,
             return_robustness,
         )
+        
         return (formulae, robustness_vectors) if return_robustness else formulae
 
     def _validate_parameters(
@@ -172,8 +172,6 @@ class ConceptGenerator:
         enable_checkpoints: bool,
         initial_formulae: Optional[List],
         initial_robustness: Optional[torch.Tensor],
-        signals: Optional[torch.Tensor],
-        signal_samples: int,
         normalize_robustness: bool,
     ) -> Tuple[List, torch.Tensor]:
         """Initialize the generation process with existing data or new formulae."""
@@ -204,20 +202,17 @@ class ConceptGenerator:
 
         # Compute robustness vectors if not provided
         if robustness_vectors is None:
-            signals = self._get_signals(signals, signal_samples)
             robustness_vectors = self._compute_robustness_vectors(
-                formulae, signals, normalize_robustness
+                formulae, self.signals, normalize_robustness
             )
 
         return formulae, robustness_vectors
 
     def _get_signals(
-        self, signals: Optional[torch.Tensor], signal_samples: int
+        self, signal_samples: int
     ) -> torch.Tensor:
         """Get or generate signals for robustness computation."""
-        if signals is not None:
-            return signals
-
+        
         measure = BaseMeasure(device=self.device)
         with torch.no_grad():
             return measure.sample(
@@ -260,9 +255,9 @@ class ConceptGenerator:
             current_formulae.extend(batch)
 
         current_formulae = current_formulae[:target_dim]
-        if output_path:
-            filename = os.path.join(output_path, "concepts")
-            dump_pickle(filename, current_formulae)
+        # if output_path:
+        #     filename = os.path.join(output_path, "concepts")
+        #     dump_pickle(filename, current_formulae)
 
         return current_formulae, None
 
@@ -274,8 +269,6 @@ class ConceptGenerator:
         output_path: Optional[str],
         enable_checkpoints: bool,
         batch_size: int,
-        signal_samples: int,
-        signals: Optional[torch.Tensor],
         current_formulae: List,
         current_robustness: torch.Tensor,
         normalize_robustness: bool,
@@ -292,9 +285,8 @@ class ConceptGenerator:
                 continue
 
             # Compute robustness for candidates
-            signals = self._get_signals(signals, signal_samples)
             candidate_robustness = self._compute_robustness_vectors(
-                candidates, signals, normalize_robustness
+                candidates, self.signals, normalize_robustness
             )
 
             # Filter candidates by cosine similarity
@@ -329,10 +321,6 @@ class ConceptGenerator:
         # Trim to target dimension and save final results
         final_formulae = current_formulae[:target_dim]
         final_robustness = current_robustness[:target_dim]
-
-        if output_path:
-            filename = os.path.join(output_path, "concepts")
-            dump_pickle(filename, final_formulae)
 
         return final_formulae, final_robustness if return_robustness else None
 
