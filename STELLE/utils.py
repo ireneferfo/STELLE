@@ -102,7 +102,7 @@ def save_results(results: List[Dict[str, Any]], results_dir: str):
     """Save experiment results to CSV file."""
     if not results:
         return
-
+    
     # Flatten all results and normalize 'loss' to 'avg_valloss'
     flattened_results = []
     for result in results:
@@ -126,7 +126,7 @@ def save_results(results: List[Dict[str, Any]], results_dir: str):
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, all_keys)
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(flattened_results)
 
 
 def parse_arguments() -> argparse.Namespace:
