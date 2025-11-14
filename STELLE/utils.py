@@ -103,6 +103,17 @@ def save_results(results: List[Dict[str, Any]], results_dir: str):
     if not results:
         return
 
+    # Normalize 'loss' to 'avg_valloss'
+    normalized_results = []
+    for result in results:
+        normalized = result.copy()
+        if 'loss' in normalized and 'avg_valloss' not in normalized:
+            normalized['avg_valloss'] = normalized.pop('loss')
+        elif 'loss' in normalized and 'avg_valloss' in normalized:
+            # If both exist, keep avg_valloss and remove loss
+            normalized.pop('loss')
+        normalized_results.append(normalized)
+        
     csv_path = os.path.join(results_dir, "results.csv")
     keys = results[0].keys()
 
