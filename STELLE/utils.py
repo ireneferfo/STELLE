@@ -103,22 +103,28 @@ def save_results(results: List[Dict[str, Any]], results_dir: str):
     if not results:
         return
 
-    # Normalize 'loss' to 'avg_valloss'
-    normalized_results = []
+    # Flatten all results and normalize 'loss' to 'avg_valloss'
+    flattened_results = []
     for result in results:
-        normalized = result.copy()
-        if 'loss' in normalized and 'avg_valloss' not in normalized:
-            normalized['avg_valloss'] = normalized.pop('loss')
-        elif 'loss' in normalized and 'avg_valloss' in normalized:
-            # If both exist, keep avg_valloss and remove loss
-            normalized.pop('loss')
-        normalized_results.append(normalized)
+        flattened = flatten_dict(result)
+        
+        # Normalize 'loss' to 'avg_valloss'
+        if 'loss' in flattened and 'avg_valloss' not in flattened:
+            flattened['avg_valloss'] = flattened.pop('loss')
+        elif 'loss' in flattened and 'avg_valloss' in flattened:
+            flattened.pop('loss')
+        
+        flattened_results.append(flattened)
+    
+    # Collect all unique keys across all results
+    all_keys = set()
+    for result in flattened_results:
+        all_keys.update(result.keys())
         
     csv_path = os.path.join(results_dir, "results.csv")
-    keys = results[0].keys()
 
     with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, keys)
+        writer = csv.DictWriter(f, all_keys)
         writer.writeheader()
         writer.writerows(results)
 
