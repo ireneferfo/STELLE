@@ -534,7 +534,8 @@ class ExplanationAnalyzer:
                     ]))[0, 1].item()
                     if not np.isnan(correlation):
                         robustness_correlations.append(correlation)
-                except:
+                except Exception as e:
+                    print(e)
                     pass
         
         # Compute aggregate metrics

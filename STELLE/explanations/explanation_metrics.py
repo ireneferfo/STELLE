@@ -196,7 +196,7 @@ def readability(formula, str_match):
     return nodes, nvars, nphis
 
 
-def readability_local(explanations, y=None, incorrect=False):
+def readability_local(explanations, y=None):
     try:
         # collect raw metrics then filter out None and any entries containing NaNs
         raw_pre = [e.explanation_readability_pre for e in explanations]
@@ -235,29 +235,39 @@ def readability_local(explanations, y=None, incorrect=False):
             )
 
         def round_tuple(t):
-            return tuple(round(float(x), 2) for x in t)
+            return tuple(round(float(x), 2) if not np.isnan(x) else np.nan for x in t)
+
+        def safe_mean(arr):
+            """Compute mean, returning nan for empty arrays"""
+            arr = np.array(arr)
+            return np.nan if len(arr) == 0 else np.nanmean(arr)
+        
+        def safe_std(arr):
+            """Compute std, returning nan for empty arrays"""
+            arr = np.array(arr)
+            return np.nan if len(arr) == 0 else np.nanstd(arr)
 
         if y is None:
             return {
                 "overall": {
                     "pre": {
                         "mean": round_tuple(
-                            (np.mean(pre_nodes), np.mean(pre_nvars), np.mean(pre_nphis))
+                            (safe_mean(pre_nodes), safe_mean(pre_nvars), safe_mean(pre_nphis))
                         ),
                         "std": round_tuple(
-                            (np.std(pre_nodes), np.std(pre_nvars), np.std(pre_nphis))
+                            (safe_std(pre_nodes), safe_std(pre_nvars), safe_std(pre_nphis))
                         ),
                     },
                     "post": {
                         "mean": round_tuple(
                             (
-                                np.mean(post_nodes),
-                                np.mean(post_nvars),
-                                np.mean(post_nphis),
+                                safe_mean(post_nodes),
+                                safe_mean(post_nvars),
+                                safe_mean(post_nphis),
                             )
                         ),
                         "std": round_tuple(
-                            (np.std(post_nodes), np.std(post_nvars), np.std(post_nphis))
+                            (safe_std(post_nodes), safe_std(post_nvars), safe_std(post_nphis))
                         ),
                     },
                 }
@@ -272,16 +282,16 @@ def readability_local(explanations, y=None, incorrect=False):
                 return {
                     "mean": round_tuple(
                         (
-                            np.mean([nodes[i] for i in indices]),
-                            np.mean([nvars[i] for i in indices]),
-                            np.mean([nphis[i] for i in indices]),
+                            safe_mean([nodes[i] for i in indices]),
+                            safe_mean([nvars[i] for i in indices]),
+                            safe_mean([nphis[i] for i in indices]),
                         )
                     ),
                     "std": round_tuple(
                         (
-                            np.std([nodes[i] for i in indices]),
-                            np.std([nvars[i] for i in indices]),
-                            np.std([nphis[i] for i in indices]),
+                            safe_std([nodes[i] for i in indices]),
+                            safe_std([nvars[i] for i in indices]),
+                            safe_std([nphis[i] for i in indices]),
                         )
                     ),
                 }
@@ -295,18 +305,18 @@ def readability_local(explanations, y=None, incorrect=False):
             "overall": {
                 "pre": {
                     "mean": round_tuple(
-                        (np.mean(pre_nodes), np.mean(pre_nvars), np.mean(pre_nphis))
+                        (safe_mean(pre_nodes), safe_mean(pre_nvars), safe_mean(pre_nphis))
                     ),
                     "std": round_tuple(
-                        (np.std(pre_nodes), np.std(pre_nvars), np.std(pre_nphis))
+                        (safe_std(pre_nodes), safe_std(pre_nvars), safe_std(pre_nphis))
                     ),
                 },
                 "post": {
                     "mean": round_tuple(
-                        (np.mean(post_nodes), np.mean(post_nvars), np.mean(post_nphis))
+                        (safe_mean(post_nodes), safe_mean(post_nvars), safe_mean(post_nphis))
                     ),
                     "std": round_tuple(
-                        (np.std(post_nodes), np.std(post_nvars), np.std(post_nphis))
+                        (safe_std(post_nodes), safe_std(post_nvars), safe_std(post_nphis))
                     ),
                 },
             },
@@ -319,15 +329,37 @@ def readability_local(explanations, y=None, incorrect=False):
                 "post": stats(incorrect_indices, post_nodes, post_nvars, post_nphis),
             },
         }
-    except:
-        return None
-
-
+    except Exception as e:
+        # Return a valid structure with all NaN values instead of None
+        nan_stats = {
+            "mean": (np.nan, np.nan, np.nan),
+            "std": (np.nan, np.nan, np.nan),
+        }
+        
+        result = {
+            "overall": {
+                "pre": nan_stats.copy(),
+                "post": nan_stats.copy(),
+            }
+        }
+        
+        if y is not None:
+            result["correct"] = {
+                "pre": nan_stats.copy(),
+                "post": nan_stats.copy(),
+            }
+            result["incorrect"] = {
+                "pre": nan_stats.copy(),
+                "post": nan_stats.copy(),
+            }
+        print(e)
+        return result
+    
 def readability_global(class_expl):
     try:
         pre_metrics = list(class_expl.explanations_readability_pre.values())
         post_metrics = list(class_expl.explanations_readability_post.values())
-
+        
         def _valid(m):
             if m is None:
                 return False
@@ -335,7 +367,7 @@ def readability_global(class_expl):
                 return not any(np.isnan(x) for x in m)
             except Exception:
                 return False
-
+        
         def to_arrays(metrics):
             clean = [m for m in metrics if _valid(m)]
             if not clean:
@@ -346,10 +378,10 @@ def readability_global(class_expl):
                 np.array(nvars, dtype=float),
                 np.array(nphis, dtype=float),
             )
-
+        
         pre_nodes, pre_nvars, pre_nphis = to_arrays(pre_metrics)
         post_nodes, post_nvars, post_nphis = to_arrays(post_metrics)
-
+        
         def safe_round(x):
             try:
                 if np.isnan(x):
@@ -357,31 +389,47 @@ def readability_global(class_expl):
                 return round(float(x), 2)
             except Exception:
                 return float("nan")
-
+        
         def round_tuple(t):
             return tuple(safe_round(x) for x in t)
-
+        
+        def safe_mean(arr):
+            """Compute mean, returning nan for empty arrays"""
+            return np.nan if len(arr) == 0 else np.nanmean(arr)
+        
+        def safe_std(arr):
+            """Compute std, returning nan for empty arrays"""
+            return np.nan if len(arr) == 0 else np.nanstd(arr)
+        
         return {
             "pre": {
                 "mean": round_tuple(
-                    (np.mean(pre_nodes), np.mean(pre_nvars), np.mean(pre_nphis))
+                    (safe_mean(pre_nodes), safe_mean(pre_nvars), safe_mean(pre_nphis))
                 ),
                 "std": round_tuple(
-                    (np.std(pre_nodes), np.std(pre_nvars), np.std(pre_nphis))
+                    (safe_std(pre_nodes), safe_std(pre_nvars), safe_std(pre_nphis))
                 ),
             },
             "post": {
                 "mean": round_tuple(
-                    (np.mean(post_nodes), np.mean(post_nvars), np.mean(post_nphis))
+                    (safe_mean(post_nodes), safe_mean(post_nvars), safe_mean(post_nphis))
                 ),
                 "std": round_tuple(
-                    (np.std(post_nodes), np.std(post_nvars), np.std(post_nphis))
+                    (safe_std(post_nodes), safe_std(post_nvars), safe_std(post_nphis))
                 ),
             },
         }
-    except:
-        return None
-
+    except Exception as e:
+        # Return a valid structure with all NaN values instead of None
+        nan_stats = {
+            "mean": (float("nan"), float("nan"), float("nan")),
+            "std": (float("nan"), float("nan"), float("nan")),
+        }
+        print(e)
+        return {
+            "pre": nan_stats.copy(),
+            "post": nan_stats.copy(),
+        }
 
 def _division_perc(
     classexplanation,
