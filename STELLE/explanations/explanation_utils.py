@@ -38,15 +38,18 @@ def compute_explanations(args, globals = False, **kwargs):
             try:
                 with open(explpath, "rb") as f:
                     local_explanations, local_explanations_time = pickle.load(f)
-                local_explanations_true_pred.append(local_explanations)
-                compute = False
-                print(f'Loaded local explanations ({i}) from {explpath}')
+                compute = hasattr(local_explanations[0], 'explanation_result') # recompute if old version
+                if not compute: 
+                    local_explanations_true_pred.append(local_explanations)
+                    print(f'Loaded local explanations ({i}) from {explpath}.')
+                else:
+                    print(f'Old version of local explanations ({i}) loaded from {explpath}. Recomputing.')
             except Exception as e:
                 print(f"Failed to load existing local explanations ({i}) ({e}).")
         
         if compute:
             start_time = time()
-            if expl_type:
+            if expl_type: # ablation tests
                 local_explanations = get_alternative_explanations(
                     model = model,
                     x=testloader.dataset.trajectories,
@@ -79,7 +82,11 @@ def compute_explanations(args, globals = False, **kwargs):
                 pickle.dump((local_explanations, local_explanations_time), f)
             print(f"Saved local explanations ({i}) to {explpath}")
 
-    local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
+    try: 
+        local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
+    except Exception as e:
+        print(e)
+        compute = True
 
     # global
     if globals:
