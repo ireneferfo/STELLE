@@ -63,7 +63,7 @@ class ExperimentConfig:
     # Training parameters
     d: float = 0.1
     bs: int = 32
-    lr: float = 1e-4
+    lr: float = 1e-5
     init_eps: float = 1
     activation_str: str = "gelu"
     backprop_method: str = "ig"
@@ -75,7 +75,7 @@ class ExperimentConfig:
 def main():
     args = parse_arguments()
     config = ExperimentConfig()
-    device = setup_environment(config.seed)
+    _ = setup_environment(config.seed)
     base_path = "tests/results/kernels_normexp/"
     model_path = "tests/results/kernel_checkpoints/"
     paths = setup_paths(base_path, model_path, args, args.dataset, config)
@@ -101,37 +101,38 @@ def main():
         kernel, _, _ = set_kernels_and_concepts(
             trainloader.dataset, paths["phis_path_og"], config_i
         )
+        for lr in [1e-4, 1e-5]:
+            config_i = replace(config_i, lr=lr)
+            model_id = (
+                f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
+                f"{config_i.n_layers}_bs{config.bs}_nstl{i}_estl{j}_ntraj{k}_etraj{l}"
+            )
+            # attach to model for later reference and debugging
+            print(f"Model ID: {model_id}")
+            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-        model_id = (
-            f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
-            f"{config_i.n_layers}_bs{config.bs}_nstl{i}_estl{j}_ntraj{k}_etraj{l}"
-        )
-        # attach to model for later reference and debugging
-        print(f"Model ID: {model_id}")
-        model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
+            args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
+            model, accuracy_results = train_test_model(args)
 
-        args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
-        model, accuracy_results = train_test_model(args)
+            args_explanations = (model_path_ev, trainloader, testloader, model, config_i)
+            local_metrics, global_metrics = compute_explanations(args_explanations)
 
-        args_explanations = (model_path_ev, trainloader, testloader, model, config_i)
-        local_metrics, global_metrics = compute_explanations(args_explanations)
+            result_raw = merge_result_dicts(
+                [accuracy_results, local_metrics, global_metrics]
+            )
 
-        result_raw = merge_result_dicts(
-            [accuracy_results, local_metrics, global_metrics]
-        )
+            result = {
+                "normalize_kernel": i,
+                "exp_kernel": j,
+                "normalize_rhotau": k,
+                "exp_rhotau": l,
+                "lr": config_i.lr, 
+                **result_raw,
+            }
+            result = flatten_dict(result)
+            results.append(result)
 
-        result = {
-            "normalize_kernel": i,
-            "exp_kernel": j,
-            "normalize_rhotau": k,
-            "exp_rhotau": l,
-            **result_raw,
-        }
-
-        result = flatten_dict(result)
-        results.append(result)
-
-        save_results(results, paths["results_dir"])
+            save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":
