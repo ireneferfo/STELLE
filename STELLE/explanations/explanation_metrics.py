@@ -15,7 +15,7 @@ def division_percentage_local(explanations, y_true=None, incorrect=False):
         return _division_percentage_local_unfiltered(explanations)
 
     y_expl = [e.target_class for e in explanations]
-    percs = [e.explanation_result.separation_percentage for e in explanations]
+    percs = [e.explanation_result_post.separation_percentage for e in explanations]
 
     if incorrect:
         # Filter explanations where y_pred != y
@@ -96,7 +96,7 @@ def _division_percentage_local_unfiltered(explanations):
 
     # higher is better
     # explanations: list of Explanation
-    percs = [e.explanation_result.separation_percentage for e in explanations]
+    percs = [e.explanation_result_post.separation_percentage for e in explanations]
     y_preds = [e.target_class for e in explanations]
 
     # Count None values for debugging
@@ -199,8 +199,8 @@ def readability(formula, str_match):
 def readability_local(explanations, y=None):
     try:
         # collect raw metrics then filter out None and any entries containing NaNs
-        raw_pre = [e.explanation_readability_pre for e in explanations]
-        raw_post = [e.explanation_readability_post for e in explanations]
+        raw_pre = [e.explanation_result_pre.readability_score for e in explanations]
+        raw_post = [e.explanation_result_post.readability_score for e in explanations]
 
         def _valid(m):
             if m is None:
@@ -213,7 +213,7 @@ def readability_local(explanations, y=None):
         pre_metrics = [m for m in raw_pre if _valid(m)]
         post_metrics = [m for m in raw_post if _valid(m)]
 
-        if pre_metrics is None or len(pre_metrics) < 3:
+        if pre_metrics is None:
             pre_nodes = pre_nvars = pre_nphis = [np.nan] * (
                 len(pre_metrics) if pre_metrics else 0
             )
@@ -222,7 +222,7 @@ def readability_local(explanations, y=None):
                 *[x if x is not None else (np.nan, np.nan, np.nan) for x in pre_metrics]
             )
 
-        if post_metrics is None or len(post_metrics) < 3:
+        if post_metrics is None:
             post_nodes = post_nvars = post_nphis = [np.nan] * (
                 len(post_metrics) if post_metrics else 0
             )
@@ -238,14 +238,22 @@ def readability_local(explanations, y=None):
             return tuple(round(float(x), 2) if not np.isnan(x) else np.nan for x in t)
 
         def safe_mean(arr):
-            """Compute mean, returning nan for empty arrays"""
-            arr = np.array(arr)
-            return np.nan if len(arr) == 0 else np.nanmean(arr)
+            """Compute mean, returning nan for empty arrays or all-NaN arrays (avoids runtime warnings)."""
+            arr = np.array(arr, dtype=float)
+            if arr.size == 0:
+                return np.nan
+            if np.all(np.isnan(arr)):
+                return np.nan
+            return float(np.nanmean(arr))
         
         def safe_std(arr):
-            """Compute std, returning nan for empty arrays"""
-            arr = np.array(arr)
-            return np.nan if len(arr) == 0 else np.nanstd(arr)
+            """Compute std, returning nan for empty arrays or all-NaN arrays (avoids runtime warnings)."""
+            arr = np.array(arr, dtype=float)
+            if arr.size == 0:
+                return np.nan
+            if np.all(np.isnan(arr)):
+                return np.nan
+            return float(np.nanstd(arr))
 
         if y is None:
             return {
@@ -743,11 +751,15 @@ def get_local_metrics(explanations, testloader):
     local_explanations_true, local_explanations_pred = explanations
 
     # div perc true - correct = div perc pred - correct
+    local_explanations_correct = [
+        e for e in local_explanations_true
+        if not e.is_misclassified
+    ]
     _, local_division_correct = division_percentage_local(
-        local_explanations_pred, testloader.dataset.labels  # filtered by correct
+        local_explanations_correct  # filtered by correct
     )
     readability_loc_correct = readability_local(
-        local_explanations_pred, y=testloader.dataset.labels
+        local_explanations_correct
     )
 
     # div perc pred - incorrect -- spiegazioni fatte per la pred, traiettorie misclassificate
@@ -759,6 +771,7 @@ def get_local_metrics(explanations, testloader):
     _, local_division_pred_incorrect = division_percentage_local(
         local_explanations_pred_incorrect  # filtered by misclassified
     )
+    
     readability_loc_pred_incorrect = readability_local(
         local_explanations_pred_incorrect
     )
@@ -792,6 +805,8 @@ def get_local_metrics(explanations, testloader):
         "division_true_all": local_division_true,
         "division_pred_all": local_division_pred,
     }
+    
+    print(f'\n{local_metrics=}\n')
 
     del (
         local_explanations_true,

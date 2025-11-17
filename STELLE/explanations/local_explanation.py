@@ -62,7 +62,8 @@ class LocalExplanation(ExplanationBase):
         
         # Explanation results
         self._processed_formulae = None
-        self.explanation_result = None
+        self.explanation_result_pre = None
+        self.explanation_result_post = None
         self._robustness_cache = None
         
         # Precompute robustness values
@@ -95,8 +96,8 @@ class LocalExplanation(ExplanationBase):
         Returns:
             Explanation result or None if no explanation found
         """
-        if self.explanation_result is not None:
-            return self.explanation_result
+        if self.explanation_result_post is not None:
+            return self.explanation_result_post
         
         if not self.candidate_formulae:
             self._set_empty_explanation()
@@ -114,13 +115,16 @@ class LocalExplanation(ExplanationBase):
             self._set_empty_explanation()
             return None
         
+        
         # Finalize explanation
         if enable_postprocessing:
+            self.explanation_result_pre = self._create_explanation_result(explanation_formula)
             explanation_result = self._finalize_explanation(explanation_formula)
         else:
             explanation_result = self._create_explanation_result(explanation_formula)
+            self.explanation_result_pre = explanation_result
         
-        self.explanation_result = explanation_result
+        self.explanation_result_post = explanation_result
         return explanation_result
     
     def _postprocess_formulae(self, formulae: List) -> List:
@@ -398,7 +402,14 @@ class LocalExplanation(ExplanationBase):
     
     def _set_empty_explanation(self) -> None:
         """Set empty explanation result."""
-        self.explanation_result = ExplanationResult(
+        self.explanation_result_pre = ExplanationResult(
+            formula=None,
+            target_robustness=torch.tensor(0.0),
+            opponent_robustness=torch.tensor([]),
+            readability_score=None,
+            separation_percentage=0.0
+        )
+        self.explanation_result_post = ExplanationResult(
             formula=None,
             target_robustness=torch.tensor(0.0),
             opponent_robustness=torch.tensor([]),
@@ -417,7 +428,7 @@ class LocalExplanation(ExplanationBase):
         Returns:
             Denormalized formula
         """
-        if self.explanation_result and self.explanation_result.formula:
-            formulae = inverse_normalize_phis(mean, std, [self.explanation_result.formula])
+        if self.explanation_result_post and self.explanation_result_post.formula:
+            formulae = inverse_normalize_phis(mean, std, [self.explanation_result_post.formula])
             return formulae[0] if formulae else None
         return None

@@ -114,15 +114,7 @@ def save_results(results: List[Dict[str, Any]], results_dir: str):
         
         flattened_results.append(result)
     
-    # Collect all unique keys across all results
-    # all_keys = set()
-    # for result in flattened_results:
-    #     all_keys.update(result.keys())
     keys = results[0].keys()
-    
-    print()
-    print(result.keys())
-    print()
     
     csv_path = os.path.join(results_dir, "results.csv")
 
