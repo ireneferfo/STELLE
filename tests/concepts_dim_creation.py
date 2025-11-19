@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from STELLE.data.dataset_loader import get_dataset
-from STELLE.explanations.explanation_utils import compute_explanations
+from STELLE.explanations.explanation_utils import compute_explanations, load_cached_metrics, save_metrics
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
 from STELLE.model.model_utils import train_test_model
 from STELLE.utils import (
@@ -102,7 +102,7 @@ def main():
             kernel, _, concepts_time = set_kernels_and_concepts(
                 trainloader.dataset, paths["phis_path_og"], config_i
             )
-            for lr in [1e-4, 1e-5]:
+            for lr in [1e-4, 1e-5, 1e-6]:
                 config_i = replace(config_i, lr=lr)
                 model_id = (
                     f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
@@ -116,14 +116,19 @@ def main():
                 args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
                 model, accuracy_results = train_test_model(args)
 
-                args_explanations = (
-                    model_path_ev,
-                    trainloader,
-                    testloader,
-                    model,
-                    config_i,
-                )
-                local_metrics, global_metrics = compute_explanations(args_explanations)
+                # Check for cached metrics first
+                local_metrics, global_metrics = load_cached_metrics(model_path_ev, config_i)
+            
+                if local_metrics is None:
+                    args_explanations = (
+                        model_path_ev,
+                        trainloader,
+                        testloader,
+                        model,
+                        config_i,
+                    )
+                    local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
+                    save_metrics(model_path_ev, config_i, local_metrics, global_metrics)
 
                 result_raw = merge_result_dicts(
                     [accuracy_results, local_metrics, global_metrics]

@@ -806,8 +806,6 @@ def get_local_metrics(explanations, testloader):
         "division_pred_all": local_division_pred,
     }
     
-    print(f'\n{local_metrics=}\n')
-
     del (
         local_explanations_true,
         local_explanations_pred,

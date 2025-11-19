@@ -403,7 +403,7 @@ class BaseConceptModel(nn.Module, ABC):
     ) -> Tuple[int, float]:
         """Load checkpoint or compute robustness information."""
         if checkpath and os.path.exists(checkpath):
-            return self._load_checkpoint(checkpath)
+            pass # return self._load_checkpoint(checkpath)
 
         if self.robs_mean is None: # if self.Gx and ...
             self._compute_and_store_robustness(trainloader, robs)
@@ -631,6 +631,32 @@ class BaseConceptModel(nn.Module, ABC):
         except Exception as e:
             print(f"Failed to save checkpoint: {e}")
 
+    def _load_checkpoint(self, checkpath: str):
+        """Load model checkpoint."""
+        if not os.path.exists(checkpath):
+            raise FileNotFoundError(f"Checkpoint file not found: {checkpath}")
+        
+        try:
+            # Load checkpoint
+            checkpoint = torch.load(checkpath, map_location=self.device)
+            
+            # Unpack the saved data
+            model_state, epoch, elapsed_time = checkpoint
+            
+            # Load the model state
+            self.load_state_dict(model_state.state_dict())
+            self.to(self.device)
+            
+            if self.logging:
+                print(f"Checkpoint loaded from epoch {epoch}")
+                print(f"Elapsed training time: {elapsed_time:.2f}s")
+            
+            return epoch, elapsed_time
+            
+        except Exception as e:
+            print(f"Failed to load checkpoint: {e}")
+            raise
+    
     def _should_validate(self, valloader, epoch: int, val_every_n_epochs: int) -> bool:
         """Determine if validation should be performed."""
         return valloader is not None and (epoch + 1) % val_every_n_epochs == 0

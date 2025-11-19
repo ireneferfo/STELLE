@@ -22,7 +22,7 @@ from STELLE.explanations.explanation_metrics import (
 )
 
 
-def compute_explanations(args, globals = False, **kwargs):
+def compute_explanations(args, globals = False, save=True, **kwargs):
     (model_path_ev, trainloader, testloader, model, config) = args
     device = model.device
     explanation_layer = model.output_activation.to(device)
@@ -31,7 +31,6 @@ def compute_explanations(args, globals = False, **kwargs):
     expl_type = kwargs.get('expl_type', None)
     
     for i in ["true", "pred"]:
-        print(f'Getting local explanations ({i})...')
         explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
         compute = True
         if os.path.exists(explpath):
@@ -48,6 +47,7 @@ def compute_explanations(args, globals = False, **kwargs):
                 print(f"Failed to load existing local explanations ({i}) ({e}).")
         
         if compute:
+            print(f'Getting local explanations ({i})...')
             start_time = time()
             if expl_type: # ablation tests
                 local_explanations = get_alternative_explanations(
@@ -78,9 +78,10 @@ def compute_explanations(args, globals = False, **kwargs):
             local_explanations_time = time() - start_time
 
             local_explanations_true_pred.append(local_explanations)
-            with open(explpath, "wb") as f:
-                pickle.dump((local_explanations, local_explanations_time), f)
-            print(f"Saved local explanations ({i}) to {explpath}")
+            if save:
+                with open(explpath, "wb") as f:
+                    pickle.dump((local_explanations, local_explanations_time), f)
+                print(f"Saved local explanations ({i}) to {explpath}")
 
     try: 
         local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
@@ -112,9 +113,10 @@ def compute_explanations(args, globals = False, **kwargs):
                 explanation_operation = kwargs.get('explanation_operation', 'mean')
             )
             global_explanations_time = time() - start_time
-            with open(globpath, "wb") as f:
-                pickle.dump((global_explanations, global_explanations_time), f)
-            print(f"Saved global explanations to {globpath}")
+            if save:
+                with open(globpath, "wb") as f:
+                    pickle.dump((global_explanations, global_explanations_time), f)
+                print(f"Saved global explanations to {globpath}")
 
         global_metrics = get_global_metrics(global_explanations)
     else:
@@ -123,6 +125,54 @@ def compute_explanations(args, globals = False, **kwargs):
     return local_metrics, global_metrics
 
 
+def load_cached_metrics(model_path_ev, config):
+    """
+    Load cached metrics if they exist for this configuration.
+    
+    Returns:
+        tuple: (local_metrics, global_metrics) if found, or (None, None) if not found
+    """
+    metrics_path = model_path_ev[:-3] + "_metrics.pickle"
+    
+    if not os.path.exists(metrics_path):
+        return None, None
+    
+    try:
+        with open(metrics_path, "rb") as f:
+            cached_data = pickle.load(f)
+        
+        # Verify the config matches
+        if cached_data.get('config_hash') == str(config):
+            print(f'Loaded cached metrics from {metrics_path}')
+            return cached_data['local_metrics'], cached_data['global_metrics']
+        else:
+            print(f'Config mismatch for cached metrics. Recomputing.')
+            return None, None
+            
+    except Exception as e:
+        print(f"Failed to load cached metrics ({e}). Recomputing.")
+        return None, None
+    
+    
+def save_metrics(model_path_ev, config, local_metrics, global_metrics):
+    """
+    Save computed metrics to cache file.
+    """
+    metrics_path = model_path_ev[:-3] + "_metrics.pickle"
+    
+    try:
+        cached_data = {
+            'config_hash': str(config),
+            'local_metrics': local_metrics,
+            'global_metrics': global_metrics
+        }
+        with open(metrics_path, "wb") as f:
+            pickle.dump(cached_data, f)
+        print(f"Saved metrics to {metrics_path}")
+    except Exception as e:
+        print(f"Failed to save metrics ({e}).")
+        
+        
 # TODO matching di shapes
 
 def get_alternative_explanations(
