@@ -40,15 +40,15 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize_kernel: bool = False
-    exp_kernel: bool = False
+    normalize_kernel: bool = True
+    exp_kernel: bool = True
     normalize_rhotau: bool = False
     exp_rhotau: bool = False
 
     # Concept parameters
-    t: float = 1.0
+    t: float = 0.98
     nvars_formulae: int = 1
-    creation_mode: str = "all"
+    creation_mode: str = "one"
     dim_concepts: int = 1000
     min_total: int = 100
     imp_t_l: float = 0
