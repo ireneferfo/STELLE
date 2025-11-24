@@ -21,6 +21,7 @@ from STELLE.utils import (
 
 # matrice usata per estrarre explanation (OK)
 
+
 @dataclass
 class ExperimentConfig:
     """Configuration for ablation experiments."""
@@ -51,7 +52,7 @@ class ExperimentConfig:
     exp_rhotau: bool = True
 
     # Concept parameters
-    t = 0.98
+    t: float = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "one"
     dim_concepts: int = 1000
@@ -59,6 +60,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
+    explanation_operation: str | None = "mean"
 
     # Training parameters
     d: float = 0.1
@@ -96,9 +98,7 @@ def main():
         trainloader.dataset, paths["phis_path_og"], config
     )
     for lr in [1e-4, 1e-5, 1e-6]:
-        print(
-                f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
-            )
+        print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
         config = replace(config, lr=lr)
         model_id = (
             f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
@@ -115,14 +115,14 @@ def main():
 
         for expl_type in ["crel", "lw", "crel_gx", "gx_lw", "crel_lw", "base"]:
             print(
-                    f"\n>>>>>>>>>>>>>>>>>>>>> expl_type = {expl_type} >>>>>>>>>>>>>>>>>>>>>\n"
-                )
-            
+                f"\n>>>>>>>>>>>>>>>>>>>>> expl_type = {expl_type} >>>>>>>>>>>>>>>>>>>>>\n"
+            )
+
             expl_path = os.path.join(
                 paths["model_path_og"],
                 f"{model_id}_base_{expl_type}_mean_{config.t_k}_{config.imp_t_l}.pt",
             )  # base arch_type
-            
+
             # Check for cached metrics first
             local_metrics, global_metrics = load_cached_metrics(expl_path, config)
 
@@ -136,7 +136,7 @@ def main():
                 )
                 local_metrics, global_metrics = compute_explanations(
                     args_explanations, expl_type=expl_type, save=False
-                    )
+                )
                 save_metrics(expl_path, config, local_metrics, global_metrics)
 
             result_raw = merge_result_dicts(

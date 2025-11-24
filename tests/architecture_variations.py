@@ -54,6 +54,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
+    explanation_operation: str | None = "mean"
 
     # Training parameters
     d: float = 0.1
