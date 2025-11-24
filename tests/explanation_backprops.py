@@ -2,7 +2,11 @@ import os
 from dataclasses import dataclass, replace
 
 from STELLE.data.dataset_loader import get_dataset
-from STELLE.explanations.explanation_utils import compute_explanations
+from STELLE.explanations.explanation_utils import (
+    compute_explanations,
+    load_cached_metrics,
+    save_metrics,
+)
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
 from STELLE.model.model_utils import train_test_model
 from STELLE.utils import (
@@ -48,7 +52,7 @@ class ExperimentConfig:
     exp_rhotau: bool = True
 
     # Concept parameters
-    t: float = 1.0
+    t = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "one"
     dim_concepts: int = 1000
@@ -92,47 +96,60 @@ def main():
     kernel, _, concepts_time = set_kernels_and_concepts(
         trainloader.dataset, paths["phis_path_og"], config
     )
-
-    model_id = (
-        f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
-        f"{config.n_layers}_bs{config.bs}"
-    )
-
-    # attach to model for later reference and debugging
-    print(f"Model ID: {model_id}")
-    model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
-
-    args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
-
-    model, accuracy_results = train_test_model(args, arch_type="base")
-
-    for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
-        expl_path = os.path.join(
-            paths["model_path_og"],
-            f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
-        )  # base expl_type
-
-        config_i = replace(config, backprop_method=method)
-        args_explanations = (expl_path, trainloader, testloader, model, config_i)
-
-        local_metrics, global_metrics = compute_explanations(
-            args_explanations, method=method
+    for lr in [1e-4, 1e-5, 1e-6]:
+        print(
+                f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
+            )
+        config = replace(config, lr=lr)
+        model_id = (
+            f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
+            f"{config.n_layers}_bs{config.bs}"
         )
 
-        result_raw = merge_result_dicts(
-            [accuracy_results, local_metrics, global_metrics]
-        )
+        # attach to model for later reference and debugging
+        print(f"Model ID: {model_id}")
+        model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-        result = {
-            "backprop_method": method,
-            "concepts_time": concepts_time,
-            **result_raw,
-        }
+        args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-        result = flatten_dict(result)
-        results.append(result)
+        model, accuracy_results = train_test_model(args, arch_type="base")
 
-        save_results(results, paths["results_dir"])
+        for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
+            print(
+                    f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n"
+                )
+            expl_path = os.path.join(
+                paths["model_path_og"],
+                f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
+            )  # base expl_type
+
+            config = replace(config, backprop_method=method)
+             # Check for cached metrics first
+            local_metrics, global_metrics = load_cached_metrics(expl_path, config)
+
+            if local_metrics is None:
+                args_explanations = (expl_path, trainloader, testloader, model, config)
+
+                local_metrics, global_metrics = compute_explanations(
+                    args_explanations, method=method, save = False
+                )
+                save_metrics(expl_path, config, local_metrics, global_metrics)
+
+            result_raw = merge_result_dicts(
+                [accuracy_results, local_metrics, global_metrics]
+            )
+
+            result = {
+                "backprop_method": method,
+                "concepts_time": concepts_time,
+                "lr": lr,
+                **result_raw,
+            }
+
+            result = flatten_dict(result)
+            results.append(result)
+
+            save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":

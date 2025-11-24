@@ -146,7 +146,7 @@ def load_cached_metrics(model_path_ev, config):
             print(f'Loaded cached metrics from {metrics_path}')
             return cached_data['local_metrics'], cached_data['global_metrics']
         else:
-            print(f'Config mismatch for cached metrics. Recomputing.')
+            print('Config mismatch for cached metrics. Recomputing.')
             return None, None
             
     except Exception as e:
