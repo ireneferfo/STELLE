@@ -96,7 +96,7 @@ def get_anchor_items(
     kernel.rhos_phi = rhos2
     kernel.selfk_phi = selfk2
 
-    concept_embeddings = stlkernel._compute_kernel(rhos1, rhos2, selfk1, selfk2)
+    concept_embeddings = stlkernel._compute_kernel(rhos1.to(stlkernel.device), rhos2.to(stlkernel.device), selfk1.to(stlkernel.device), selfk2.to(stlkernel.device))
 
     # Cleanup
     gc.collect()
@@ -109,6 +109,7 @@ def main():
     global dim_anchors
     args = parse_arguments()
     task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
+    print(f'{task_id=}')
     config = ExperimentConfig()
     _ = setup_environment(config.seed)
     base_path = "tests/results/architecture_variations/"
@@ -141,7 +142,8 @@ def main():
         # run all architectures in all groups
         archs = sum(archs_list.values(), [])
     else:
-        archs = archs_list[task_id]
+        archs = archs_list[int(task_id)]
+        print(f'{archs=}')
     for arch_type in archs:
         print(
             f"\n\n>>>>>>>>>>>>>>>>>>>>> arch_type = {arch_type} >>>>>>>>>>>>>>>>>>>>>"
