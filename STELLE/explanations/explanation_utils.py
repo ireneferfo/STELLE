@@ -128,27 +128,61 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
 def load_cached_metrics(model_path_ev, config):
     """
     Load cached metrics if they exist for this configuration.
-    
     Returns:
         tuple: (local_metrics, global_metrics) if found, or (None, None) if not found
     """
     metrics_path = model_path_ev[:-3] + "_metrics.pickle"
-    
     if not os.path.exists(metrics_path):
         return None, None
+    
+    # Parameters to ignore when comparing configs
+    IGNORED_PARAMS = {'verbose', 'logging', 'workers', 'pll'}
     
     try:
         with open(metrics_path, "rb") as f:
             cached_data = pickle.load(f)
         
-        # Verify the config matches
-        if cached_data.get('config_hash') == str(config):
+        cached_config_str = cached_data.get('config_hash', '')
+        current_config_str = str(config)
+        
+        # Parse config strings to extract key-value pairs
+        def parse_config_str(config_str):
+            """Extract key=value pairs from config string"""
+            import re
+            pattern = r'(\w+)=([\w\.\-]+)'
+            matches = re.findall(pattern, config_str)
+            return dict(matches)
+        
+        cached_config_dict = parse_config_str(cached_config_str)
+        current_config_dict = parse_config_str(current_config_str)
+        
+        # Remove ignored parameters
+        for param in IGNORED_PARAMS:
+            cached_config_dict.pop(param, None)
+            current_config_dict.pop(param, None)
+        
+        # Compare configs (ignoring specified params)
+        if cached_config_dict == current_config_dict:
             print(f'Loaded cached metrics from {metrics_path}')
             return cached_data['local_metrics'], cached_data['global_metrics']
-        else:
-            print('Config mismatch for cached metrics. Recomputing.')
-            return None, None
-            
+        
+        # Mismatch detected - find differences
+        print('Config mismatch for cached metrics. Recomputing.')
+        all_keys = set(cached_config_dict.keys()) | set(current_config_dict.keys())
+        mismatches = []
+        
+        for key in sorted(all_keys):
+            cached_val = cached_config_dict.get(key, '<MISSING>')
+            current_val = current_config_dict.get(key, '<MISSING>')
+            if cached_val != current_val:
+                mismatches.append(f"  {key}: {cached_val} -> {current_val}")
+        
+        if mismatches:
+            print("Mismatched config keys:")
+            print("\n".join(mismatches))
+        
+        return None, None
+        
     except Exception as e:
         print(f"Failed to load cached metrics ({e}). Recomputing.")
         return None, None
