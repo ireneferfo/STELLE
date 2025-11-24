@@ -1146,23 +1146,23 @@ def get_training_explanations(
     trainloader,
     explanation_layer,
     backprop_method,
-    explanation_operation = 'mean',
+    explanation_operation: str | None = "mean",
     imp_t_l=0.01,
     imp_t_g=0.01,
     t_k=0.95,
     k=None,
-    pll = 1
+    pll=1,
 ):
     training_local_explanations = model.get_explanations(
-            x=trainloader.dataset.trajectories,
-            y_true=trainloader.dataset.labels,
-            trajbyclass=trainloader.dataset.split_by_class(),
-            layer=explanation_layer,
-            t_k=t_k,
-            method=backprop_method,
-            k=k,
-            op = explanation_operation
-            )
+        x=trainloader.dataset.trajectories,
+        y_true=trainloader.dataset.labels,
+        trajbyclass=trainloader.dataset.split_by_class(),
+        layer=explanation_layer,
+        t_k=t_k,
+        method=backprop_method,
+        k=k,
+        op=explanation_operation,
+    )
     if len(training_local_explanations) > 0:
         for e in training_local_explanations:
             # without final postprocessing, ie simplifications and such (faster)
@@ -1172,6 +1172,8 @@ def get_training_explanations(
         class_explanations = ClassExplanation(
             training_local_explanations, is_training=True
         )
-        class_explanations.generate_class_explanations(improvement_threshold=imp_t_g, max_workers=pll)
+        class_explanations.generate_class_explanations(
+            improvement_threshold=imp_t_g, max_workers=pll
+        )
         return class_explanations
     return None

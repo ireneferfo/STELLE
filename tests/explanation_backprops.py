@@ -52,7 +52,7 @@ class ExperimentConfig:
     exp_rhotau: bool = True
 
     # Concept parameters
-    t = 0.98
+    t: float = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "one"
     dim_concepts: int = 1000
@@ -60,6 +60,7 @@ class ExperimentConfig:
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
+    explanation_operation: str | None = "mean"
 
     # Training parameters
     d: float = 0.1
@@ -97,9 +98,7 @@ def main():
         trainloader.dataset, paths["phis_path_og"], config
     )
     for lr in [1e-4, 1e-5, 1e-6]:
-        print(
-                f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
-            )
+        print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
         config = replace(config, lr=lr)
         model_id = (
             f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
@@ -115,23 +114,21 @@ def main():
         model, accuracy_results = train_test_model(args, arch_type="base")
 
         for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
-            print(
-                    f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n"
-                )
+            print(f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n")
             expl_path = os.path.join(
                 paths["model_path_og"],
                 f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
             )  # base expl_type
 
             config = replace(config, backprop_method=method)
-             # Check for cached metrics first
+            # Check for cached metrics first
             local_metrics, global_metrics = load_cached_metrics(expl_path, config)
 
             if local_metrics is None:
                 args_explanations = (expl_path, trainloader, testloader, model, config)
 
                 local_metrics, global_metrics = compute_explanations(
-                    args_explanations, method=method, save = False
+                    args_explanations, method=method, save=False
                 )
                 save_metrics(expl_path, config, local_metrics, global_metrics)
 

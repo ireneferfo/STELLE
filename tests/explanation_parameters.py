@@ -27,8 +27,8 @@ class ExperimentConfig:
     """Configuration for ablation experiments."""
 
     # Synthetic data parameters
-    n_train: int = 100
-    n_test: int = 50
+    n_train: int = 500
+    n_test: int = 100
     nvars: int = 5
     series_length: int = 100
     num_classes: int = 3
@@ -52,15 +52,15 @@ class ExperimentConfig:
     exp_rhotau: bool = True
 
     # Concept parameters
-    t = 1
+    t: float = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "one"
-    dim_concepts: int = 100
+    dim_concepts: int = 1000
     min_total: int = 100
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
-    explanation_operation = "mean"
+    explanation_operation: str | None = "mean"
 
     # Training parameters
     d: float = 0.1
