@@ -91,59 +91,63 @@ def main():
 
     results = []
 
-    for i, j, k, l in product([False, True], repeat=4):  # noqa: E741
-        print(f"\n>>>>>>>>>>>>> norm/exp stl/traj = {i, j, k, l} >>>>>>>>>>>>>\n")
+    for seed in range(3):
+        print(f"\n>>>>>>>>>>>>> SEED = {seed} >>>>>>>>>>>>>\n")
+        for i, j, k, l in product([False, True], repeat=4):  # noqa: E741
+            print(f"\n>>>>>>>>>>>>> norm/exp stl/traj = {i, j, k, l} >>>>>>>>>>>>>\n")
 
-        config_i = replace(
-            config, normalize_kernel=i, exp_kernel=j, normalize_rhotau=k, exp_rhotau=l
-        )
-
-        kernel, _, _ = set_kernels_and_concepts(
-            trainloader.dataset, paths["phis_path_og"], config_i
-        )
-        for lr in [1e-4, 1e-5, 1e-6]:
-            config_i = replace(config_i, lr=lr)
-            model_id = (
-                f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
-                f"{config_i.n_layers}_bs{config.bs}_nstl{i}_estl{j}_ntraj{k}_etraj{l}"
+            config_i = replace(
+                config, normalize_kernel=i, exp_kernel=j, normalize_rhotau=k, exp_rhotau=l, seed = seed
             )
-            # attach to model for later reference and debugging
-            print(f"Model ID: {model_id}")
-            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-            args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
-            model, accuracy_results = train_test_model(args)
-
-                # Check for cached metrics first
-            local_metrics, global_metrics = load_cached_metrics(model_path_ev, config_i)
+            kernel, _, _ = set_kernels_and_concepts(
+                trainloader.dataset, paths["phis_path_og"], config_i
+            )
             
-            if local_metrics is None:
-                args_explanations = (
-                    model_path_ev,
-                    trainloader,
-                    testloader,
-                    model,
-                    config_i,
+            for lr in [1e-4, 1e-5, 1e-6]:
+                config_i = replace(config_i, lr=lr)
+                model_id = (
+                    f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
+                    f"{config_i.n_layers}_bs{config.bs}_nstl{i}_estl{j}_ntraj{k}_etraj{l}"
                 )
-                local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
-                save_metrics(model_path_ev, config_i, local_metrics, global_metrics)
+                # attach to model for later reference and debugging
+                print(f"Model ID: {model_id}")
+                model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-            result_raw = merge_result_dicts(
-                [accuracy_results, local_metrics, global_metrics]
-            )
+                args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
+                model, accuracy_results = train_test_model(args)
 
-            result = {
-                "normalize_kernel": i,
-                "exp_kernel": j,
-                "normalize_rhotau": k,
-                "exp_rhotau": l,
-                "lr": config_i.lr, 
-                **result_raw,
-            }
-            result = flatten_dict(result)
-            results.append(result)
+                    # Check for cached metrics first
+                local_metrics, global_metrics = load_cached_metrics(model_path_ev, config_i)
+                
+                if local_metrics is None:
+                    args_explanations = (
+                        model_path_ev,
+                        trainloader,
+                        testloader,
+                        model,
+                        config_i,
+                    )
+                    local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
+                    save_metrics(model_path_ev, config_i, local_metrics, global_metrics)
 
-            save_results(results, paths["results_dir"])
+                result_raw = merge_result_dicts(
+                    [accuracy_results, local_metrics, global_metrics]
+                )
+
+                result = {
+                    "seed": seed,
+                    "normalize_kernel": i,
+                    "exp_kernel": j,
+                    "normalize_rhotau": k,
+                    "exp_rhotau": l,
+                    "lr": config_i.lr, 
+                    **result_raw,
+                }
+                result = flatten_dict(result)
+                results.append(result)
+
+                save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":

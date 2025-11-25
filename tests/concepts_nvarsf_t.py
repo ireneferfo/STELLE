@@ -92,60 +92,63 @@ def main():
     results = []
 
     # from here it depends from concepts details
-    for nvars_formulae in [1, 2, 3]:
-        print(f"\n>>>>>>>>>>>>> N VARS FORMULAE = {nvars_formulae} >>>>>>>>>>>>>\n")
-        for t in [1, 0.99, 0.98, 0.97, 0.96, 0.95]:
-            print(f"\n>>>>>>>>>>>>> T = {t} >>>>>>>>>>>>>\n")
-            config_i = replace(config, nvars_formulae=nvars_formulae, t=t)
+    for seed in range(3):
+        print(f"\n>>>>>>>>>>>>> SEED = {seed} >>>>>>>>>>>>>\n")
+        for nvars_formulae in [1, 2, 3]:
+            print(f"\n>>>>>>>>>>>>> N VARS FORMULAE = {nvars_formulae} >>>>>>>>>>>>>\n")
+            for t in [1, 0.99, 0.98, 0.97, 0.96, 0.95]:
+                print(f"\n>>>>>>>>>>>>> T = {t} >>>>>>>>>>>>>\n")
+                config_i = replace(config, nvars_formulae=nvars_formulae, t=t, seed=seed)
 
-            kernel, _, concepts_time = set_kernels_and_concepts(
-                trainloader.dataset, paths["phis_path_og"], config_i
-            )
-            
-            for lr in [1e-4, 1e-5, 1e-6]:
-                config_i = replace(config_i, lr=lr)
-                model_id = (
-                    f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
-                    f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{len(kernel.phis)}_"
-                    f"{config_i.creation_mode}_f{config_i.nvars_formulae}"
+                kernel, _, concepts_time = set_kernels_and_concepts(
+                    trainloader.dataset, paths["phis_path_og"], config_i
                 )
-                # attach to model for later reference and debugging
-                print(f"Model ID: {model_id}")
-                model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
-
-                args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
-                model, accuracy_results = train_test_model(args)
-
-                # Check for cached metrics first
-                local_metrics, global_metrics = load_cached_metrics(model_path_ev, config_i)
-            
-                if local_metrics is None:
-                    args_explanations = (
-                        model_path_ev,
-                        trainloader,
-                        testloader,
-                        model,
-                        config_i,
+                
+                for lr in [1e-4, 1e-5, 1e-6]:
+                    config_i = replace(config_i, lr=lr)
+                    model_id = (
+                        f"seed_{config_i.seed}_{config_i.lr}_{config_i.init_crel}_{config.init_eps}_{config_i.h}_"
+                        f"{config_i.n_layers}_bs{config.bs}_t{config_i.t}_{len(kernel.phis)}_"
+                        f"{config_i.creation_mode}_f{config_i.nvars_formulae}"
                     )
-                    local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
-                    save_metrics(model_path_ev, config_i, local_metrics, global_metrics)
+                    # attach to model for later reference and debugging
+                    print(f"Model ID: {model_id}")
+                    model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-                result_raw = merge_result_dicts(
-                    [accuracy_results, local_metrics, global_metrics]
-                )
+                    args = (kernel, trainloader, valloader, testloader, model_path_ev, config_i)
+                    model, accuracy_results = train_test_model(args)
 
-                result = {
-                    "nvars_formulae": config_i.nvars_formulae,
-                    "t": config_i.t,
-                    "lr": config_i.lr, 
-                    "concepts_time": round(concepts_time, 3),
-                    **result_raw,
-                }
+                    # Check for cached metrics first
+                    local_metrics, global_metrics = load_cached_metrics(model_path_ev, config_i)
+                
+                    if local_metrics is None:
+                        args_explanations = (
+                            model_path_ev,
+                            trainloader,
+                            testloader,
+                            model,
+                            config_i,
+                        )
+                        local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
+                        save_metrics(model_path_ev, config_i, local_metrics, global_metrics)
 
-                result = flatten_dict(result)
-                results.append(result)
+                    result_raw = merge_result_dicts(
+                        [accuracy_results, local_metrics, global_metrics]
+                    )
 
-                save_results(results, paths["results_dir"])
+                    result = {
+                        "seed": seed,
+                        "nvars_formulae": config_i.nvars_formulae,
+                        "t": config_i.t,
+                        "lr": config_i.lr, 
+                        "concepts_time": round(concepts_time, 3),
+                        **result_raw,
+                    }
+
+                    result = flatten_dict(result)
+                    results.append(result)
+
+                    save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":
