@@ -125,6 +125,7 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
     return local_metrics, global_metrics
 
 
+
 def load_cached_metrics(model_path_ev, config):
     """
     Load cached metrics if they exist for this configuration.
@@ -186,6 +187,7 @@ def load_cached_metrics(model_path_ev, config):
     except Exception as e:
         print(f"Failed to load cached metrics ({e}). Recomputing.")
         return None, None
+    
     
     
 def save_metrics(model_path_ev, config, local_metrics, global_metrics):
