@@ -37,6 +37,7 @@ N_TRIALS = 3
 
 # TODO aggiustare paths
 
+
 @dataclass
 class ExperimentConfig:
     """Base configuration for experiments."""
@@ -67,7 +68,7 @@ class ExperimentConfig:
     exp_rhotau: bool = True
 
     # Concept parameters - can be tuned
-    t: float = 1.0
+    t: float = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "all"
     dim_concepts: int = 30
@@ -260,7 +261,7 @@ class HyperparameterOptimizer:
 
         # Compute explanations (optional)
         # args_explanations = (model_path_ev, trainloader, testloader, model, config)
-        # local_metrics, global_metrics = compute_explanations(args_explanations)
+        # local_metrics, global_metrics = compute_explanations(args_explanations, save = False)
 
         print(
             f"Trial completed: Test Accuracy = {accuracy_results.get('accuracy', 0.0)}"
