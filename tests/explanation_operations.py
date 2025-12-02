@@ -145,8 +145,9 @@ def main():
             )
 
             result = {
-                "explanation_operation": explanation_operation**result_raw,
+                "explanation_operation": explanation_operation,
                 "lr": lr,
+                **result_raw,
             }
 
             result = flatten_dict(result)
