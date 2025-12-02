@@ -137,7 +137,7 @@ def load_cached_metrics(model_path_ev, config):
         return None, None
     
     # Parameters to ignore when comparing configs
-    IGNORED_PARAMS = {'verbose', 'logging', 'workers', 'pll'}
+    IGNORED_PARAMS = {'verbose', 'logging', 'workers', 'pll', 'epochs'}
     
     try:
         with open(metrics_path, "rb") as f:
