@@ -538,6 +538,8 @@ class BaseConceptModel(nn.Module, ABC):
             temb_dict = {}
 
             for batch in trainloader:
+                if self.device == 'mps':
+                    batch[0] = batch[0].float()
                 trajectories = batch[0].to(self.device)
                 temb_batch = (
                     self.kernel.compute_rho_phi(
