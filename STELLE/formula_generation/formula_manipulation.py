@@ -37,16 +37,14 @@ def time_scaling(phis, points, phi_timespan=101):
         temporal_end_idx = [
             i for i in range(len(phi_str)) if phi_str.startswith("]", i)
         ]
-        # print(f'{temporal_start_idx=}')
-        # print(f'{temporal_middle_idx=}')
-        # print(f'{temporal_end_idx=}')
+        
         # Get the start index of the first interval, if any
         start_idx = temporal_start_idx[0] if len(temporal_start_idx) > 0 else None
         str_list = [
             phi_str[:start_idx]
         ]  # Initialize a list to store parts of the new formula
         new_intervals_list = []  # Initialize a list to store the new time intervals
-        rights = 0
+        
         # Iterate through the indices of the temporal intervals
         for i, s, m, e in zip(
             range(len(temporal_start_idx)),
@@ -64,37 +62,37 @@ def time_scaling(phis, points, phi_timespan=101):
                 float(phi_str[s + 1 : m]),
                 right_bound,
             ]  # this is the original interval
-            # these are the changes I was doing (so this is the main part that should be changed)
+            
+            # Calculate the percentage/width of the current interval
             current_percentage = (
                 0
                 if right_unbound
                 else current_time_interval[1] - current_time_interval[0]
-            )  # current percentage of the time interval
-            new_left = math.floor(
-                current_time_interval[0] * current_one_percent
-            )  # Scale the left bound of the interval
-            # Scale the entire interval and ensure it does not exceed the number of points
+            )
             
-            # Ensure end is at most points and greater than start
-            new_right = new_left + max(math.floor(current_percentage * current_one_percent), 1)
-            new_right = min(new_right, points)
-            rights += new_right
+            # Scale the left bound
+            new_left = math.floor(current_time_interval[0] * current_one_percent)
             
-            if rights > points:
-                diff = rights - points
-                new_right = new_right - diff
-                
-            new_time_interval = [
-                new_left,
-                new_right
-            ]
+            # Scale the interval width and ensure it's at least 1
+            interval_width = max(math.floor(current_percentage * current_one_percent), 1)
+            
+            # Calculate new right bound
+            new_right = new_left + interval_width
+            
+            # Clamp to valid range [new_left, points]
+            new_right = max(new_left, min(new_right, points))
+            
+            new_time_interval = [new_left, new_right]
+            
             new_right_str = (
                 "inf" if right_unbound else str(new_time_interval[1])
             )  # Determine the right bound as a string
-            # from now on it is changing the formula parameters
+            
+            # Construct the new interval string
             new_intervals_list += [
                 "[" + str(new_time_interval[0]) + "," + new_right_str + "]"
-            ]  # Construct the new interval string and add it to the list
+            ]
+            
             # Extract the part of the formula after the current interval
             idx = (
                 temporal_start_idx[i + 1]
@@ -109,11 +107,11 @@ def time_scaling(phis, points, phi_timespan=101):
             new_phi_str += str_list[i]
             new_phi_str += new_intervals_list[i]
         new_phi_str += str_list[-1]
+        
         # Convert the new formula string back to a formula object and add it to the list
         phis_scaled.append(from_string_to_formula(new_phi_str))
 
     return phis_scaled
-
     
 def rhos_disjunction(precomputed_rhos, subset):
     z1 = precomputed_rhos[subset[0]]
