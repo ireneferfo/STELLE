@@ -24,7 +24,7 @@ def get_dataset(
     X_train, y_train, X_test, y_test, num_classes, diff_params = _load_raw_data(
         dataname, config, **kwargs
     )
-    
+        
     # Preprocess data
     X_train, X_test, y_train, y_test, label_map = _preprocess_data(
         X_train, y_train, X_test, y_test
@@ -68,7 +68,7 @@ def _load_raw_data(dataname, config, **kwargs):
         if os.path.isdir(folder_path):
             print(f"Loading dataset {dataname} from: {folder_path}")
             # load your data here
-            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, **kwargs)
+            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = config.seed, **kwargs)
             
         else:
             X_train, y_train, metadata = load_classification(
@@ -103,10 +103,8 @@ def _load_data_from_folder(seed = 0, test_size = 0.2, datafolder="./data"):
                 sublists[i % n].append(float(item))
             data.append(sublists)         
             
-    x, y =  torch.tensor(data), torch.tensor(labels)
-    
     x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=test_size, random_state=seed, stratify=y
+        data, labels, test_size=test_size, random_state=seed, stratify=labels
     )
     return x_train, x_test, y_train, y_test, num_classes
 
