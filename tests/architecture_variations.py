@@ -145,77 +145,81 @@ def main():
     else:
         archs = archs_list[int(task_id)]
         print(f'{archs=}')
-    for arch_type in archs:
-        print(
-            f"\n\n>>>>>>>>>>>>>>>>>>>>> arch_type = {arch_type} >>>>>>>>>>>>>>>>>>>>>"
-        )
-        for lr in [1e-4, 1e-5, 1e-6]: 
+        
+    for seed in range(3):
+        print(f"\n>>>>>>>>>>>>> SEED = {seed} >>>>>>>>>>>>>\n")
+        for arch_type in archs:
             print(
-                f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
+                f"\n\n>>>>>>>>>>>>>>>>>>>>> arch_type = {arch_type} >>>>>>>>>>>>>>>>>>>>>"
             )
-            config = replace(config, lr=lr)
-            model_id = (
-                f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
-                f"{config.n_layers}_bs{config.bs}_{arch_type}"
-            )
-            # attach to model for later reference and debugging
-            print(f"Model ID: {model_id}")
-            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
+            for lr in [1e-4, 1e-5, 1e-6]: 
+                print(
+                    f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
+                )
+                config = replace(config, lr=lr, seed = seed)
+                model_id = (
+                    f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
+                    f"{config.n_layers}_bs{config.bs}_{arch_type}"
+                )
+                # attach to model for later reference and debugging
+                print(f"Model ID: {model_id}")
+                model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-            args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
-            if arch_type == "Anchor":
-                _, concepts, concept_embeddings, base_concepts_time = (
-                    get_anchor_items(
-                        kernel,
-                        trainloader.dataset,
-                        paths["phis_path_og"],
-                        formula_manager,
-                        dim_anchors,
+                args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
+                if arch_type == "Anchor":
+                    _, concepts, concept_embeddings, base_concepts_time = (
+                        get_anchor_items(
+                            kernel,
+                            trainloader.dataset,
+                            paths["phis_path_og"],
+                            formula_manager,
+                            dim_anchors,
+                            config,
+                        )
+                    )
+                    model, accuracy_results = train_test_model(
+                        args,
+                        arch_type=arch_type,
+                        concepts=concepts,
+                        concept_embeddings=concept_embeddings,
+                    )
+                else:
+                    base_concepts_time = dim_anchors = 0
+                    model, accuracy_results = train_test_model(args, arch_type=arch_type)
+
+                # Check for cached metrics first
+                local_metrics, global_metrics = load_cached_metrics(model_path_ev, config)
+            
+                if local_metrics is None:
+                    args_explanations = (
+                        model_path_ev,
+                        trainloader,
+                        testloader,
+                        model,
                         config,
                     )
+                    local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
+                    save_metrics(model_path_ev, config, local_metrics, global_metrics)
+
+                result_raw = merge_result_dicts(
+                    [accuracy_results, local_metrics, global_metrics]
                 )
-                model, accuracy_results = train_test_model(
-                    args,
-                    arch_type=arch_type,
-                    concepts=concepts,
-                    concept_embeddings=concept_embeddings,
-                )
-            else:
-                base_concepts_time = dim_anchors = 0
-                model, accuracy_results = train_test_model(args, arch_type=arch_type)
 
-            # Check for cached metrics first
-            local_metrics, global_metrics = load_cached_metrics(model_path_ev, config)
-        
-            if local_metrics is None:
-                args_explanations = (
-                    model_path_ev,
-                    trainloader,
-                    testloader,
-                    model,
-                    config,
-                )
-                local_metrics, global_metrics = compute_explanations(args_explanations, save=False)
-                save_metrics(model_path_ev, config, local_metrics, global_metrics)
+                result = {
+                    "seed": seed,
+                    "arch_type": arch_type,
+                    "concepts_time": concepts_time + base_concepts_time,
+                    "dim_anchors": dim_anchors,
+                    "lr": config.lr, 
+                    **result_raw,
+                }
 
-            result_raw = merge_result_dicts(
-                [accuracy_results, local_metrics, global_metrics]
-            )
+                result = flatten_dict(result)
+                results.append(result)
 
-            result = {
-                "arch_type": arch_type,
-                "concepts_time": concepts_time + base_concepts_time,
-                "dim_anchors": dim_anchors,
-                "lr": config.lr, 
-                **result_raw,
-            }
-
-            result = flatten_dict(result)
-            results.append(result)
-
-            save_results(results, paths["results_dir"])
-            
-            del model
+                save_results(results, paths["results_dir"])
+                
+                del model
 
 
 if __name__ == "__main__":
