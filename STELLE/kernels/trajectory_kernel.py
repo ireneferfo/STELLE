@@ -23,8 +23,8 @@ class TrajectoryKernel:
         varn: int = 2,
         points: int = 100,
         signals: Optional[torch.Tensor] = None,
-        normalize: bool = False,
-        exp_kernel: bool = False,
+        normalize: bool = True,
+        exp_kernel: bool = True,
         normalize_rhotau: bool = True,
         exp_rhotau: bool = False,
     ):

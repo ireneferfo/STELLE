@@ -17,8 +17,8 @@ class StlKernel:
     def __init__(
         self,
         measure,
-        normalize: bool = False,
-        exp_kernel: bool = False,
+        normalize: bool = True,
+        exp_kernel: bool = True,
         sigma2: float = 0.44,
         samples: int = 10000,
         varn: int = 1,

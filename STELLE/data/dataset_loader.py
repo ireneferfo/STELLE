@@ -54,7 +54,7 @@ def get_dataset(
     return trainloader, testloader, valloader
 
 
-def _load_raw_data(dataname, config, **kwargs):
+def _load_raw_data(dataname, config = None, **kwargs):
     """Load raw data from synthetic generation or aeon datasets."""
     if "synthetic" in dataname:
         X_train, y_train ,X_test, y_test, num_classes, diff_params = load_data_with_difficulty(
@@ -67,8 +67,9 @@ def _load_raw_data(dataname, config, **kwargs):
         
         if os.path.isdir(folder_path):
             print(f"Loading dataset {dataname} from: {folder_path}")
+            seed = config.seed if config else 0
             # load your data here
-            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = config.seed, **kwargs)
+            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = seed, **kwargs)
             
         else:
             X_train, y_train, metadata = load_classification(
