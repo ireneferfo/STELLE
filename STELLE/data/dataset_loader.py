@@ -70,7 +70,10 @@ def _load_raw_data(dataname, config = None, **kwargs):
             seed = config.seed if config else 0
             # load your data here
             X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = seed, **kwargs)
-            
+            X_train = np.array(X_train)
+            X_test = np.array(X_test)
+            y_train = np.array(y_train)
+            y_test = np.array(y_test)
         else:
             X_train, y_train, metadata = load_classification(
                 dataname, split="train", return_metadata=True
@@ -114,6 +117,7 @@ def _preprocess_data(X_train, y_train, X_test, y_test):
     """Remove redundant variables and convert labels to numeric format."""
     # Remove redundant variables
     keep = remove_redundant_variables(X_train)
+    print(keep)
     X_train = X_train[:, keep, :]
     X_test = X_test[:, keep, :]
     

@@ -221,7 +221,7 @@ class FormulaManager:
         try:
             with open(file_path, "rb") as f:
                 return torch.load(
-                    f, map_location=torch.device(self.device), weights_only=False
+                    f, map_location=torch.device('cpu'), weights_only=False
                 )
         except Exception as e:
             print(f"Error loading formulae from {file_path}: {e}")

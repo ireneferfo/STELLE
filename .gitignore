@@ -6,3 +6,5 @@ notebooks/
 logs/
 phis/
 results*
+tuning/
+*.out

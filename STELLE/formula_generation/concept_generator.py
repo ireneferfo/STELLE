@@ -88,7 +88,7 @@ class ConceptGenerator:
         promote_simple: bool = False,
         output_path: Optional[str] = None,
         enable_checkpoints: bool = False,
-        batch_size: int = 1000,
+        batch_size: int = 100,
         initial_formulae: Optional[List] = None,
         initial_robustness: Optional[torch.Tensor] = None,
         normalize_robustness: bool = False,
