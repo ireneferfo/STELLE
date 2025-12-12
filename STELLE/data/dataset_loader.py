@@ -2,6 +2,8 @@ import os
 import csv
 import torch
 import numpy as np
+from dataclasses import replace
+
 from sklearn.model_selection import train_test_split
 from aeon.datasets import load_classification
 from torch.utils.data import DataLoader
@@ -24,6 +26,13 @@ def get_dataset(
     X_train, y_train, X_test, y_test, num_classes, diff_params = _load_raw_data(
         dataname, config, **kwargs
     )
+    
+    config = replace(config, 
+                    n_train= X_train.shape[0],
+                    n_test= X_test.shape[0],
+                    nvars = X_train.shape[1],
+                    series_length= X_train.shape[2],
+                    num_classes= num_classes)
         
     # Preprocess data
     X_train, X_test, y_train, y_test, label_map = _preprocess_data(
@@ -51,7 +60,7 @@ def get_dataset(
     trainloader, valloader, testloader = _create_dataloaders(
         train_subset, val_subset, test_subset, config.bs, config.workers, config.seed)
     
-    return trainloader, testloader, valloader
+    return trainloader, testloader, valloader, config
 
 
 def _load_raw_data(dataname, config = None, **kwargs):
@@ -117,7 +126,6 @@ def _preprocess_data(X_train, y_train, X_test, y_test):
     """Remove redundant variables and convert labels to numeric format."""
     # Remove redundant variables
     keep = remove_redundant_variables(X_train)
-    print(keep)
     X_train = X_train[:, keep, :]
     X_test = X_test[:, keep, :]
     
