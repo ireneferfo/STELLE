@@ -235,3 +235,50 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
     )
     
     return trainloader, valloader, testloader
+
+
+UCR = ['BeetleFly',
+    'ECG200',
+    'ECG5000', 
+    'EOGVerticalSignal',
+    'Epilepsy2' ,
+    'GunPoint',
+    'GunPointOVY',
+    'NerveDamage',
+    'SharePriceIncrease'
+    ]
+
+UEA = [
+    "ArticularyWordRecognition" ,
+    "AtrialFibrillation" ,
+    "BasicMotions" ,
+    "Cricket" ,
+    "DuckDuckGeese" ,
+    "EigenWorms" ,
+    "Epilepsy" ,
+    "EthanolConcentration" ,
+    "ERing" ,
+    "FaceDetection" ,
+    "FingerMovements" ,
+    "HandMovementDirection" ,
+    "Handwriting" ,
+    "Heartbeat" ,
+    "Libras" ,
+    "LSST" ,
+    "MotorImagery" ,
+    "NATOPS" ,
+    "PenDigits" ,
+    "PEMS-SF" ,
+    "PhonemeSpectra" ,
+    "RacketSports" ,
+    "SelfRegulationSCP1" ,
+    "SelfRegulationSCP2" ,
+    "StandWalkJump" ,
+    "UWaveGestureLibrary" ,
+]
+
+def load_UCR_from_idx(idx):
+    return UCR[idx]
+
+def load_UEA_from_idx(idx):
+    return UEA[idx]
