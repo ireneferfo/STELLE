@@ -1,5 +1,6 @@
 import os
 import json
+import math
 from dataclasses import dataclass, replace
 from typing import Dict, Any, List
 
@@ -7,6 +8,9 @@ from ax.service.ax_client import AxClient, ObjectiveProperties
 from ax.generation_strategy.generation_strategy import GenerationStrategy
 from ax.generation_strategy.generation_node import GenerationStep
 from ax.adapter.registry import Generators
+from botorch.acquisition.logei import (
+    qLogNoisyExpectedImprovement
+)
 
 from STELLE.data.dataset_loader import get_dataset
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
@@ -31,64 +35,75 @@ os.environ["SQLALCHEMY_WARN_20"] = "0"
 warnings.filterwarnings(
     "ignore", category=SAWarning, message=".*TypeDecorator.*cache_ok.*"
 )
+warnings.filterwarnings(
+    "ignore", category=SAWarning, message=".*WARNING.*"
+)
+warnings.filterwarnings('ignore', message='.*Ax currently requires a sqlalchemy version below 2.0.*')
 
+# TODO: aggiungere sobol trials
 
-N_TRIALS = 3
-
-# TODO aggiustare paths
-
+N_TRIALS = 200
 
 @dataclass
 class ExperimentConfig:
     """Base configuration for experiments."""
 
     # Synthetic data parameters
-    n_train: int = 50
-    n_test: int = 30
+    n_train: int = 500
+    n_test: int = 200
     nvars: int = 5
     series_length: int = 100
-    num_classes: int = 3
+    num_classes: int = 4
 
     # Fixed parameters
     seed: int = 0
-    pll: int = 8
-    workers: int = 2
-    samples: int = 300
-    epochs: int = 3
-    cf: int = 50
+    pll: int = 0
+    workers: int = 1
+    samples: int = 2500
+    epochs: int = 1500
+    cf: int = 300
     patience: int = 5
-    val_every_n_epochs: int = 1
-    verbose: int = 1
+    val_every_n_epochs: int = 2
+    verbose: int = 20
     logging: bool = False
 
     # Kernel parameters - can be tuned
-    normalize_kernel: bool = False
-    exp_kernel: bool = False
+    normalize_kernel: bool = True
+    exp_kernel: bool = True
     normalize_rhotau: bool = True
-    exp_rhotau: bool = True
+    exp_rhotau: bool = False
 
     # Concept parameters - can be tuned
     t: float = 0.98
     nvars_formulae: int = 1
     creation_mode: str = "all"
-    dim_concepts: int = 30
-    min_total: int = 100
+    dim_concepts: int = 1000
+    min_total: int = 1000
+    
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
+    explanation_operation: str | None = "mean"
 
     # Training parameters - can be tuned
     d: float = 0.1
     bs: int = 32
     lr: float = 1e-4
-    init_eps: float = 1
-    activation_str: str = "gelu"
+    init_eps: float = math.exp(1)
+    activation_str: str = "relu"
     backprop_method: str = "ig"
     init_crel: float = 1
     h: int = 256
     n_layers: int = 1
 
 
+def replace_exp_with_lr(d):
+        """Convert exp → lr inside a parameters dict."""
+        exp = d.pop("exp", None)    # remove 'exp' key from dict
+        if exp is not None:
+            d["lr"] = 10 ** exp     # insert lr instead
+        return d
+    
 class HyperparameterOptimizer:
     """Bayesian optimization for hyperparameter tuning using Ax."""
 
@@ -126,59 +141,54 @@ class HyperparameterOptimizer:
         return [
             # Training hyperparameters
             {
-                "name": "lr",
+                # "name": "lr",
+                # "type": "range",
+                # "bounds": [1e-7, 1e-2],
+                # "log_scale": True,
+                # "value_type": "float",
+                # "digits": 7,
+                "name": "exp",
                 "type": "range",
-                "bounds": [1e-7, 1e-2],
-                "log_scale": True,
+                "bounds": [-6, -2],
                 "value_type": "float",
-                "digits": 7,
+                "digits": 1,
             },
             {
                 "name": "bs",
                 "type": "choice",
-                "values": [16, 32, 64, 128],
+                "values": [16, 32, 64],
                 "value_type": "int",
             },
             {
                 "name": "h",
                 "type": "choice",
-                "values": [128, 256, 512, 1024],
+                "values": [128, 256, 512],
                 "value_type": "int",
             },
             {
                 "name": "n_layers",
                 "type": "range",
-                "bounds": [0, 3],
+                "bounds": [0, 2],
                 "value_type": "int",
             },
             {
                 "name": "d",
-                "type": "range",
-                "bounds": [0.0, 0.4],
+                "type": "choice",
+                "values": [0.1, 0.3],
                 "value_type": "float",
-                "digits": 1,
             },
             {
                 "name": "init_crel",
                 "type": "range",
-                "bounds": [1.0, 10.0],
-                "value_type": "float",
-                "digits": 1,
+                "bounds": [1, 8],
+                "value_type": "int",
             },
-            {
-                "name": "init_eps",
-                "type": "range",
-                "bounds": [0.1, 2.0],
-                "value_type": "float",
-                "digits": 1,
-            },
-            # Activation function
-            {
-                "name": "activation_str",
-                "type": "choice",
-                "values": ["relu", "gelu"],
-                "value_type": "str",
-            },
+            # {
+            #     "name": "init_eps",
+            #     "type": "choice",
+            #     "bounds": [0.1, 0.5, 1.0, 1.5, 2.0],
+            #     "value_type": "float",
+            # },
         ]
 
     def create_ax_client(self) -> AxClient:
@@ -189,7 +199,7 @@ class HyperparameterOptimizer:
                 # Start with Sobol for exploration
                 GenerationStep(
                     generator=Generators.SOBOL,
-                    num_trials=10,  # Initial random trials
+                    num_trials=20,  # Initial random trials
                     model_kwargs={"seed": 0},
                 ),
                 # Then switch to Bayesian optimization with qLogNEI
@@ -197,7 +207,7 @@ class HyperparameterOptimizer:
                     generator=Generators.BOTORCH_MODULAR,
                     num_trials=-1,  # No limit, use for remaining trials
                     model_kwargs={
-                        "acquisition_class": "qLogNoisyExpectedImprovement",
+                        "botorch_acqf_class": qLogNoisyExpectedImprovement,
                     },
                 ),
             ]
@@ -227,6 +237,9 @@ class HyperparameterOptimizer:
             Dictionary containing accuracy and other metrics
         """
         # Create config with new parameters
+        # Apply the transformation
+        parameters = replace_exp_with_lr(parameters)
+
         config = replace(self.base_config, **parameters)
 
         # try:
@@ -257,7 +270,7 @@ class HyperparameterOptimizer:
             model_path_ev,
             config,
         )
-        model, accuracy_results = train_test_model(args_model)
+        _, accuracy_results = train_test_model(args_model)
 
         # Compute explanations (optional)
         # args_explanations = (model_path_ev, trainloader, testloader, model, config)
@@ -347,17 +360,19 @@ class HyperparameterOptimizer:
             print("Parameters to evaluate:")
             for key, value in parameters.items():
                 print(f"  {key}: {value}")
-
+            print()
             # Evaluate configuration
             results = self.evaluate_configuration(parameters)
+            objective_result = {'accuracy': results.get('accuracy', 0.0)}
 
             # Complete trial with results
-            ax_client.complete_trial(trial_index=trial_index, raw_data=results)
+            ax_client.complete_trial(trial_index=trial_index, raw_data=objective_result)
 
             # Store results
             trial_result = {
                 "trial_index": trial_index,
-                "parameters": parameters,
+                # "parameters": parameters,
+                **parameters,
                 **results,
             }
             self.trial_results.append(trial_result)
@@ -451,9 +466,10 @@ def main():
     """Main execution function."""
     args = parse_arguments()
     base_config = ExperimentConfig()
-    base_path = ""
-    model_path = ""
+    base_path = "paper_results/tuning"
+    model_path = "tuning"
     paths = setup_paths(base_path, model_path, args, args.dataset, base_config)
+    
     # Configure optimization
     optimizer = HyperparameterOptimizer(
         base_config=base_config,
