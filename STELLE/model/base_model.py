@@ -22,7 +22,7 @@ class BaseModelConfig:
     concepts: Any
     num_classes: int
     Geps: float = 1e-12
-    initial_epsilon: float = 1
+    initial_epsilon: float = math.exp(1)
     initial_concept_relevance_scale: float = 1
     dropout: float = 0.2
     tune: bool = True
