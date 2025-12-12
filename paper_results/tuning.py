@@ -40,8 +40,6 @@ warnings.filterwarnings(
 )
 warnings.filterwarnings('ignore', message='.*Ax currently requires a sqlalchemy version below 2.0.*')
 
-# TODO: aggiungere sobol trials
-
 N_TRIALS = 200
 
 @dataclass
@@ -244,7 +242,7 @@ class HyperparameterOptimizer:
 
         # try:
         # Load dataset
-        trainloader, valloader, testloader = get_dataset(
+        trainloader, valloader, testloader, config  = get_dataset(
             self.dataset_name, config, self.paths["dataset_info_path"]
         )
 
