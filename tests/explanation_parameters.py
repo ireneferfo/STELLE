@@ -97,7 +97,7 @@ def main():
     kernel, _, _ = set_kernels_and_concepts(
         trainloader.dataset, paths["phis_path_og"], config
     )
-    for lr in [1e-4, 1e-5, 1e-6]:
+    for lr in [1e-5]:
         print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
         config = replace(config, lr=lr)
         model_id = (
@@ -113,9 +113,9 @@ def main():
 
         model, accuracy_results = train_test_model(args, arch_type="base")
 
-        for t_k in [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7]:
+        for t_k in [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1]:
             print(f"\n>>>>>>>>>>>>>>>>>>>>> t_k = {t_k} >>>>>>>>>>>>>>>>>>>>>\n")
-            for imp_t_l in [0, 0.001, 0.01, 0.1, 0.2]:
+            for imp_t_l in [0, 0.001, 0.01, 0.1, 0.2, 0.3]:
                 print(f"\n>>>>>>>>>>>>>>>>>>>>> imp_t_l = {imp_t_l} >>>>>>>>>>>>>>>>>>>>>\n")
                 config = replace(config, t_k=t_k, imp_t_l=imp_t_l)
                 expl_path = os.path.join(
