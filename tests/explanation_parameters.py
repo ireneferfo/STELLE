@@ -84,7 +84,7 @@ def main():
     os.makedirs(paths["results_dir"], exist_ok=True)
     os.makedirs(paths["model_path_og"], exist_ok=True)
 
-    trainloader, valloader, testloader = get_dataset(
+    trainloader, valloader, testloader, config = get_dataset(
         args.dataset, config, paths["dataset_info_path"]
     )
 
