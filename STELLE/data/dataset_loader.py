@@ -240,10 +240,12 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
 UCR = ['BeetleFly',
     'ECG200',
     'ECG5000', 
+    
     'EOGVerticalSignal',
     'Epilepsy2' ,
     'GunPoint',
-    'GunPointOVY',
+    
+    'GunPointOldVersusYoung',
     'NerveDamage',
     'SharePriceIncrease'
     ]
