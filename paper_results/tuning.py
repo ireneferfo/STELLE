@@ -12,7 +12,7 @@ from botorch.acquisition.logei import (
     qLogNoisyExpectedImprovement
 )
 
-from STELLE.data.dataset_loader import get_dataset
+from STELLE.data.dataset_loader import get_dataset, load_UCR_from_idx, load_UEA_from_idx
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
 from STELLE.model.model_utils import train_test_model
 from STELLE.utils import (
@@ -55,8 +55,8 @@ class ExperimentConfig:
 
     # Fixed parameters
     seed: int = 0
-    pll: int = 0
-    workers: int = 1
+    pll: int = 8
+    workers: int = 2
     samples: int = 2500
     epochs: int = 1500
     cf: int = 300
@@ -463,15 +463,26 @@ class HyperparameterOptimizer:
 def main():
     """Main execution function."""
     args = parse_arguments()
+    task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
+    print(f'{task_id=}')
     base_config = ExperimentConfig()
     base_path = "paper_results/tuning"
     model_path = "tuning"
-    paths = setup_paths(base_path, model_path, args, args.dataset, base_config)
+    
+    if task_id is None: 
+        dataset = args.dataset
+    else:
+        if args.dataset in ['uni', 'univ', 'univariate']:
+            dataset = load_UCR_from_idx(int(task_id)-1)
+        elif args.dataset in ['multi', 'multiv', 'multivariate']:
+            dataset = load_UEA_from_idx(int(task_id)-1)
+                 
+    paths = setup_paths(base_path, model_path, args, dataset, base_config)
     
     # Configure optimization
     optimizer = HyperparameterOptimizer(
         base_config=base_config,
-        dataset_name=args.dataset,
+        dataset_name=dataset,
         n_trials=N_TRIALS,  # Maximum number of trials
         paths=paths,
         early_stopping_patience=10,  # Stop if no improvement for 10 trials
