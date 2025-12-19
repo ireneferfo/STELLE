@@ -177,9 +177,11 @@ class LocalExplanation(ExplanationBase):
                     closest_opponent = torch.max(valid_opponents).item()
                     translation = (target_robustness.item() + closest_opponent) / 2
                 else:
-                    translation = target_robustness.item()
+                    # should never happen
+                    translation = 0 # target_robustness.item()
             else:
-                translation = target_robustness.item()
+                # should never happen
+                translation = 0 # target_robustness.item()
             
             # Apply translation
             translated_formula = rescale_var_thresholds(formula, -translation)
