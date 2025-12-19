@@ -49,7 +49,7 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
         if compute:
             print(f'Getting local explanations ({i})...')
             start_time = time()
-            if expl_type: # ablation tests
+            if expl_type not in [None, 'base']: # ablation tests
                 local_explanations = get_alternative_explanations(
                     model = model,
                     x=testloader.dataset.trajectories,
@@ -265,14 +265,18 @@ def get_alternative_explanations(
             model.output_activation(concept_relevance) if norm else concept_relevance
         ) # (batch, phis)
     else: 
-        term1 = G_phis # (batch, phis, classes)
+        term1 = crelGs_raw # (batch, phis, classes)
 
     # Filter for correct predictions if requested
     if filter_onlycorrect and y_true is not None:
         x, y_pred, term1, class_scores = model._filter_correct_predictions(
             x, y_true, y_pred, term1, class_scores
         )
-
+    if term1.shape != crelGs_raw.shape:
+        # Calculate how many times we need to repeat
+        repeat_factor = crelGs_raw.shape[1] // term1.shape[1]
+        print(f'{crelGs_raw.shape=}, {term1.shape=}, {repeat_factor=}')
+        term1 = term1.repeat(1, repeat_factor)
     # Compute attributions
     x_requires_grad = x.requires_grad_()
     targets = y_pred if y_true is None else y_pred
