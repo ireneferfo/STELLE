@@ -37,7 +37,6 @@ class ExperimentConfig:
     pll: int = 8
     workers: int = 2
     samples: int = 3000
-    samples: int = 3000
     epochs: int = 3000
     cf: int = 300
     patience: int = 10
@@ -48,17 +47,9 @@ class ExperimentConfig:
     # Kernel parameters (OK)
     normalize_kernel: bool = True
     exp_kernel: bool = True
-    # Kernel parameters (OK)
-    normalize_kernel: bool = True
-    exp_kernel: bool = True
     normalize_rhotau: bool = True
     exp_rhotau: bool = False
-    exp_rhotau: bool = False
 
-    # Concept parameters (OK)
-    t: float = 0.98 
-    nvars_formulae: int = 1 
-    creation_mode: str = "all" 
     # Concept parameters (OK)
     t: float = 0.98 
     nvars_formulae: int = 1 
@@ -75,17 +66,8 @@ class ExperimentConfig:
     t_k: float = 0.8
     explanation_operation: str | None = "mean"
     backprop_method: str = "ig"
-    backprop_method: str = "ig"
 
     # Training parameters
-    d: float = 0.1 # tune
-    bs: int = 32 # tune
-    lr: float = 1e-4 # tune
-    init_eps: float = 1 # tune
-    activation_str: str = "relu" # OK
-    init_crel: float = 1 # tune
-    h: int = 256 # tune
-    n_layers: int = 1 # tune
     d: float = 0.1 # tune
     bs: int = 32 # tune
     lr: float = 1e-4 # tune
@@ -119,31 +101,37 @@ def main():
     kernel, _, concepts_time = set_kernels_and_concepts(
         trainloader.dataset, paths["phis_path_og"], config
     )
-    for seed in range(3):
-        for lr in [1e-5]:
-            print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
-            config = replace(config, lr=lr, seed=seed)
-            model_id = (
-                f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
-                f"{config.n_layers}_bs{config.bs}"
-            )
+    for lr in [1e-5]:
+        print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
+        config = replace(config, lr=lr)
+        model_id = (
+            f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
+            f"{config.n_layers}_bs{config.bs}"
+        )
 
-            # attach to model for later reference and debugging
-            print(f"Model ID: {model_id}")
-            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
+        # attach to model for later reference and debugging
+        print(f"Model ID: {model_id}")
+        model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-            args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
+        args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-            model, accuracy_results = train_test_model(args, arch_type="base")
+        model, accuracy_results = train_test_model(args, arch_type="base")
 
+        for seed in range(3):
             for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
                 print(f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n")
-                expl_path = os.path.join(
-                    paths["model_path_og"],
-                    f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
-                )  # base expl_type
+                if seed == 0:
+                    expl_path = os.path.join(
+                        paths["model_path_og"],
+                        f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
+                    )  # base expl_type
+                else:
+                    expl_path = os.path.join(
+                        paths["model_path_og"],
+                        f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}_{seed}.pt",)
+                    
 
-                config = replace(config, backprop_method=method)
+                config = replace(config, backprop_method=method, seed = seed)
                 # Check for cached metrics first
                 local_metrics, global_metrics = load_cached_metrics(expl_path, config)
 
