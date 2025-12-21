@@ -59,7 +59,7 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
                     t_k=config.t_k,
                     method = kwargs.get('method', 'ig'),
                     op = kwargs.get('explanation_operation', 'mean'),
-                    expl_type = expl_type
+                    expl_type = expl_type,
                 )
             else:
                 local_explanations = model.get_explanations(
@@ -69,7 +69,9 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
                     layer=explanation_layer,
                     t_k=config.t_k,
                     method = kwargs.get('method', 'ig'),
-                    op = kwargs.get('explanation_operation', 'mean')
+                    op = kwargs.get('explanation_operation', 'mean'),
+                    seed = config.seed
+
                 )
             for e in local_explanations:
                 e.generate_explanation(

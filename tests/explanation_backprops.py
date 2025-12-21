@@ -21,7 +21,6 @@ from STELLE.utils import (
 
 # diversi metodi di backpropagation (OK)
 
-
 @dataclass
 class ExperimentConfig:
     """Configuration for ablation experiments."""
@@ -37,7 +36,7 @@ class ExperimentConfig:
     seed: int = 0
     pll: int = 8
     workers: int = 2
-    samples: int = 5000
+    samples: int = 3000
     epochs: int = 3000
     cf: int = 300
     patience: int = 10
@@ -45,33 +44,35 @@ class ExperimentConfig:
     verbose: int = 100
     logging: bool = False
 
-    # Kernel parameters
-    normalize_kernel: bool = False
-    exp_kernel: bool = False
+    # Kernel parameters (OK)
+    normalize_kernel: bool = True
+    exp_kernel: bool = True
     normalize_rhotau: bool = True
-    exp_rhotau: bool = True
+    exp_rhotau: bool = False
 
-    # Concept parameters
-    t: float = 0.98
-    nvars_formulae: int = 1
-    creation_mode: str = "one"
+    # Concept parameters (OK)
+    t: float = 0.98 
+    nvars_formulae: int = 1 
+    creation_mode: str = "all" 
     dim_concepts: int = 1000
-    min_total: int = 100
+    min_total: int = 1000
+
+    # Explanation parameters
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
     explanation_operation: str | None = "mean"
+    backprop_method: str = "ig"
 
     # Training parameters
-    d: float = 0.1
-    bs: int = 32
-    lr: float = 1e-4
-    init_eps: float = 1
-    activation_str: str = "gelu"
-    backprop_method: str = "ig"
-    init_crel: float = 1
-    h: int = 256
-    n_layers: int = 1
+    d: float = 0.1 # tune
+    bs: int = 32 # tune
+    lr: float = 1e-4 # tune
+    init_eps: float = 1 # tune
+    activation_str: str = "relu" # OK
+    init_crel: float = 1 # tune
+    h: int = 256 # tune
+    n_layers: int = 1 # tune
 
 
 def main():
@@ -97,56 +98,57 @@ def main():
     kernel, _, concepts_time = set_kernels_and_concepts(
         trainloader.dataset, paths["phis_path_og"], config
     )
-    for lr in [1e-4, 1e-5, 1e-6]:
-        print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
-        config = replace(config, lr=lr)
-        model_id = (
-            f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
-            f"{config.n_layers}_bs{config.bs}"
-        )
-
-        # attach to model for later reference and debugging
-        print(f"Model ID: {model_id}")
-        model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
-
-        args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
-
-        model, accuracy_results = train_test_model(args, arch_type="base")
-
-        for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
-            print(f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n")
-            expl_path = os.path.join(
-                paths["model_path_og"],
-                f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
-            )  # base expl_type
-
-            config = replace(config, backprop_method=method)
-            # Check for cached metrics first
-            local_metrics, global_metrics = load_cached_metrics(expl_path, config)
-
-            if local_metrics is None:
-                args_explanations = (expl_path, trainloader, testloader, model, config)
-
-                local_metrics, global_metrics = compute_explanations(
-                    args_explanations, method=method, save=False
-                )
-                save_metrics(expl_path, config, local_metrics, global_metrics)
-
-            result_raw = merge_result_dicts(
-                [accuracy_results, local_metrics, global_metrics]
+    for seed in range(3):
+        for lr in [1e-5]:
+            print(f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n")
+            config = replace(config, lr=lr, seed=seed)
+            model_id = (
+                f"seed_{config.seed}_{config.lr}_{config.init_crel}_{config.init_eps}_{config.h}_"
+                f"{config.n_layers}_bs{config.bs}"
             )
 
-            result = {
-                "backprop_method": method,
-                "concepts_time": concepts_time,
-                "lr": lr,
-                **result_raw,
-            }
+            # attach to model for later reference and debugging
+            print(f"Model ID: {model_id}")
+            model_path_ev = os.path.join(paths["model_path_og"], f"{model_id}.pt")
 
-            result = flatten_dict(result)
-            results.append(result)
+            args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
-            save_results(results, paths["results_dir"])
+            model, accuracy_results = train_test_model(args, arch_type="base")
+
+            for method in ["ig", "deeplift", "nobackprop", "random", "identity"]:
+                print(f"\n>>>>>>>>>>>>>>>>>>>>> method = {method} >>>>>>>>>>>>>>>>>>>>>\n")
+                expl_path = os.path.join(
+                    paths["model_path_og"],
+                    f"{model_id}_{method}_base_mean_{config.t_k}_{config.imp_t_l}.pt",
+                )  # base expl_type
+
+                config = replace(config, backprop_method=method)
+                # Check for cached metrics first
+                local_metrics, global_metrics = load_cached_metrics(expl_path, config)
+
+                if local_metrics is None:
+                    args_explanations = (expl_path, trainloader, testloader, model, config)
+
+                    local_metrics, global_metrics = compute_explanations(
+                        args_explanations, method=method, save=False
+                    )
+                    save_metrics(expl_path, config, local_metrics, global_metrics)
+
+                result_raw = merge_result_dicts(
+                    [accuracy_results, local_metrics, global_metrics]
+                )
+
+                result = {
+                    "seed":seed,
+                    "backprop_method": method,
+                    "lr": lr,
+                    **result_raw,
+                }
+
+                result = flatten_dict(result)
+                results.append(result)
+
+                save_results(results, paths["results_dir"])
 
 
 if __name__ == "__main__":

@@ -806,6 +806,7 @@ class BaseConceptModel(nn.Module, ABC):
         filter_onlycorrect: bool = False,
         op: str = "mean",
         norm: bool = False,
+        seed: int = 0
     ):
         """
         Generate concept-based explanations for predictions.
@@ -845,7 +846,7 @@ class BaseConceptModel(nn.Module, ABC):
         targets = y_pred if y_true is None else y_pred
 
         attribution_weights = self._compute_attributions(
-            x_requires_grad, targets, layer, method
+            x_requires_grad, targets, layer, method, seed
         ) # (batch, phis * classes)
 
         # Compute final attribution matrix
@@ -888,19 +889,29 @@ class BaseConceptModel(nn.Module, ABC):
         )
 
     def _compute_attributions(
-        self, x: torch.Tensor, targets: torch.Tensor, layer, method: str
+        self, x: torch.Tensor, targets: torch.Tensor, layer, method: str, seed:int=0
     ) -> torch.Tensor:
         """Compute attribution weights using specified method."""
-        if method == "nobackprop":
-            return self._compute_nobackprop_attributions()
-        elif method == "random":
-            return self._compute_random_attributions()
-        elif method == "identity":
-            return self._compute_identity_attributions()
-        elif method in ["deeplift", "ig"]:
-            return self._compute_gradient_attributions(x, targets, layer, method)
-        else:
-            raise ValueError(f"Unknown attribution method: {method}")
+        from contextlib import contextmanager
+
+        @contextmanager
+        def set_all_possible_seeds(s):
+            torch.manual_seed(s)
+            torch.cuda.manual_seed(s)
+            torch.backends.cudnn.deterministic = True
+            yield
+    
+        with set_all_possible_seeds(seed):
+            if method == "nobackprop":
+                return self._compute_nobackprop_attributions()
+            elif method == "random":
+                return self._compute_random_attributions(seed)
+            elif method == "identity":
+                return self._compute_identity_attributions()
+            elif method in ["deeplift", "ig"]:
+                return self._compute_gradient_attributions(x, targets, layer, method)
+            else:
+                raise ValueError(f"Unknown attribution method: {method}")
 
     def _compute_nobackprop_attributions(self) -> torch.Tensor:
         """Compute output gradient attributions."""
