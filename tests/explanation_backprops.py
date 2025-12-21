@@ -37,6 +37,7 @@ class ExperimentConfig:
     pll: int = 8
     workers: int = 2
     samples: int = 3000
+    samples: int = 3000
     epochs: int = 3000
     cf: int = 300
     patience: int = 10
@@ -47,9 +48,17 @@ class ExperimentConfig:
     # Kernel parameters (OK)
     normalize_kernel: bool = True
     exp_kernel: bool = True
+    # Kernel parameters (OK)
+    normalize_kernel: bool = True
+    exp_kernel: bool = True
     normalize_rhotau: bool = True
     exp_rhotau: bool = False
+    exp_rhotau: bool = False
 
+    # Concept parameters (OK)
+    t: float = 0.98 
+    nvars_formulae: int = 1 
+    creation_mode: str = "all" 
     # Concept parameters (OK)
     t: float = 0.98 
     nvars_formulae: int = 1 
@@ -58,13 +67,25 @@ class ExperimentConfig:
     min_total: int = 1000
 
     # Explanation parameters
+    min_total: int = 1000
+
+    # Explanation parameters
     imp_t_l: float = 0
     imp_t_g: float = 0
     t_k: float = 0.8
     explanation_operation: str | None = "mean"
     backprop_method: str = "ig"
+    backprop_method: str = "ig"
 
     # Training parameters
+    d: float = 0.1 # tune
+    bs: int = 32 # tune
+    lr: float = 1e-4 # tune
+    init_eps: float = 1 # tune
+    activation_str: str = "relu" # OK
+    init_crel: float = 1 # tune
+    h: int = 256 # tune
+    n_layers: int = 1 # tune
     d: float = 0.1 # tune
     bs: int = 32 # tune
     lr: float = 1e-4 # tune

@@ -46,10 +46,10 @@ class ExperimentConfig:
     logging: bool = False
 
     # Kernel parameters
-    normalize_kernel: bool = False
-    exp_kernel: bool = False
-    normalize_rhotau: bool = True
-    exp_rhotau: bool = True
+    normalize_kernel: bool = True
+    exp_kernel: bool = True
+    normalize_rhotau: bool = False
+    exp_rhotau: bool = False
 
     # Concept parameters
     t: float = 0.98

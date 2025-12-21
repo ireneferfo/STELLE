@@ -1,4 +1,5 @@
 import os
+import torch
 from dataclasses import dataclass, replace
 
 from STELLE.data.dataset_loader import get_dataset
@@ -107,7 +108,6 @@ def get_anchor_items(
 
 
 def main():
-    global dim_anchors
     args = parse_arguments()
     task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
     print(f'{task_id=}')
@@ -153,6 +153,7 @@ def main():
                 f"\n\n>>>>>>>>>>>>>>>>>>>>> arch_type = {arch_type} >>>>>>>>>>>>>>>>>>>>>"
             )
             for lr in [1e-4, 1e-5, 1e-6]: 
+                torch.cuda.empty_cache()
                 print(
                     f"\n>>>>>>>>>>>>>>>>>>>>> lr = {lr} >>>>>>>>>>>>>>>>>>>>>\n"
                 )
@@ -167,6 +168,7 @@ def main():
 
                 args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
                 if arch_type == "Anchor":
+                    global dim_anchors
                     _, concepts, concept_embeddings, base_concepts_time = (
                         get_anchor_items(
                             kernel,
@@ -184,7 +186,7 @@ def main():
                         concept_embeddings=concept_embeddings,
                     )
                 else:
-                    base_concepts_time = dim_anchors = 0
+                    base_concepts_time = 0
                     model, accuracy_results = train_test_model(args, arch_type=arch_type)
 
                 # Check for cached metrics first
@@ -209,7 +211,7 @@ def main():
                     "seed": seed,
                     "arch_type": arch_type,
                     "concepts_time": concepts_time + base_concepts_time,
-                    "dim_anchors": dim_anchors,
+                    "dim_anchors": dim_anchors if arch_type == "Anchor" else 0,
                     "lr": config.lr, 
                     **result_raw,
                 }
