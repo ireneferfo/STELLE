@@ -88,7 +88,7 @@ def main():
     os.makedirs(paths["results_dir"], exist_ok=True)
     os.makedirs(paths["model_path_og"], exist_ok=True)
 
-    trainloader, valloader, testloader = get_dataset(
+    trainloader, valloader, testloader, config = get_dataset(
         args.dataset, config, paths["dataset_info_path"]
     )
 
@@ -98,7 +98,7 @@ def main():
     results = []
 
     # from here it depends from concepts details
-    kernel, _, concepts_time = set_kernels_and_concepts(
+    kernel, _, _ = set_kernels_and_concepts(
         trainloader.dataset, paths["phis_path_og"], config
     )
     for lr in [1e-5]:
