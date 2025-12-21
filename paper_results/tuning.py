@@ -485,9 +485,9 @@ def main():
         dataset_name=dataset,
         n_trials=N_TRIALS,  # Maximum number of trials
         paths=paths,
-        early_stopping_patience=10,  # Stop if no improvement for 10 trials
+        early_stopping_patience=20,  # Stop if no improvement for 10 trials
         early_stopping_threshold=1e-4,  # Minimum improvement required (0.01%)
-        min_trials=20,  # Minimum trials before early stopping can trigger
+        min_trials=40,  # Minimum trials before early stopping can trigger
     )
 
     # Run optimization
