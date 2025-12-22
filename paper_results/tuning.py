@@ -84,7 +84,7 @@ class ExperimentConfig:
     explanation_operation: str | None = "mean"
 
     # Training parameters - can be tuned
-    d: float = 0.1
+    d: float = 0.2
     bs: int = 32
     lr: float = 1e-4
     init_eps: float = math.exp(1)
@@ -169,12 +169,12 @@ class HyperparameterOptimizer:
                 "bounds": [0, 2],
                 "value_type": "int",
             },
-            {
-                "name": "d",
-                "type": "choice",
-                "values": [0.1, 0.3],
-                "value_type": "float",
-            },
+            # {
+            #     "name": "d",
+            #     "type": "choice",
+            #     "values": [0.1, 0.3],
+            #     "value_type": "float",
+            # },
             {
                 "name": "init_crel",
                 "type": "range",
