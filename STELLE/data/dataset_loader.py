@@ -6,6 +6,8 @@ from dataclasses import replace
 
 from sklearn.model_selection import train_test_split
 from aeon.datasets import load_classification
+from aeon.benchmarking.resampling import resample_data
+
 from torch.utils.data import DataLoader
 
 from ..data.data_generation import load_data_with_difficulty
@@ -19,6 +21,7 @@ def get_dataset(
     config,
     dataset_info_path,
     validation = True,
+    fold = 0,
     **kwargs
 ):
     """Load and prepare dataset with train/val/test splits and dataloaders."""
@@ -28,6 +31,7 @@ def get_dataset(
         dataname, config, **kwargs
     )
     
+    X_train, y_train, X_test, y_test = resample_data(X_train, y_train, X_test, y_test, random_state=fold)
     config = replace(config, 
                     n_train= X_train.shape[0],
                     n_test= X_test.shape[0],
@@ -43,7 +47,7 @@ def get_dataset(
     if validation:
         # Create validation split
         X_test, X_val, y_test, y_val = train_test_split(
-            X_test, y_test, test_size=0.2, random_state=config.seed
+            X_test, y_test, test_size=0.2, random_state=fold
         )
     else: 
         X_val, y_val = None, None
@@ -62,7 +66,7 @@ def get_dataset(
     
     # Create dataloaders
     trainloader, valloader, testloader = _create_dataloaders(
-        train_subset, val_subset, test_subset, config.bs, config.workers, config.seed)
+        train_subset, val_subset, test_subset, config.bs, config.workers, fold)
     
     return trainloader, testloader, valloader, config
 

@@ -90,9 +90,6 @@ def main():
     os.makedirs(paths["results_dir"], exist_ok=True)
     os.makedirs(paths["model_path_og"], exist_ok=True)
     
-    trainloader, valloader, testloader, base_config  = get_dataset(
-            dataset, base_config, paths["dataset_info_path"], validation=False
-        )
     params = get_params(dataset)
     base_config = replace(base_config, **params)
     print(f"Run ID: {paths['run_id']}\n")
@@ -102,10 +99,13 @@ def main():
     
     for fold in range(5):
         model_path_fold = os.path.join(paths["model_path_og"], f"fold_{fold}/")
+        trainloader, valloader, testloader, base_config  = get_dataset(
+            dataset, base_config, paths["dataset_info_path"], validation=False, fold = fold
+        )
+        print(f'\n >>>>>>>>>>>>>>> FOLD {fold} >>>>>>>>>>>>>>>\n')
         kernel, _, _ = set_kernels_and_concepts(
             trainloader.dataset, paths["phis_path_og"], base_config
         ) 
-        
         for seed in range(3):
             torch.cuda.empty_cache()
             
