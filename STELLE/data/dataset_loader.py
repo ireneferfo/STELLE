@@ -18,6 +18,7 @@ def get_dataset(
     dataname,
     config,
     dataset_info_path,
+    validation = True,
     **kwargs
 ):
     """Load and prepare dataset with train/val/test splits and dataloaders."""
@@ -39,10 +40,13 @@ def get_dataset(
         X_train, y_train, X_test, y_test
     )
     
-    # Create validation split
-    X_test, X_val, y_test, y_val = train_test_split(
-        X_test, y_test, test_size=0.2, random_state=config.seed
-    )
+    if validation:
+        # Create validation split
+        X_test, X_val, y_test, y_val = train_test_split(
+            X_test, y_test, test_size=0.2, random_state=config.seed
+        )
+    else: 
+        X_val, y_val = None, None
     
     # Save dataset information
     _save_dataset_info(
@@ -146,11 +150,11 @@ def _save_dataset_info(
         lines = [
             f"dataname: {dataname}",
             f"X_train.shape: {X_train.shape}",
-            f"X_val.shape: {X_val.shape}",
+            f"X_val.shape: {X_val.shape if X_val else 0}",
             f"X_test.shape: {X_test.shape}",
             f"num_classes: {num_classes}",
             f"train_subset: {np.bincount(y_train)}",
-            f"val_subset: {np.bincount(y_val)}",
+            f"val_subset: {np.bincount(y_val) if y_val else 0}",
             f"test_subset: {np.bincount(y_test)}",
         ]
         print()
@@ -177,14 +181,7 @@ def _create_normalized_datasets(
         label_map=label_map,
         num_classes=num_classes,
     )
-    
-    val_subset = TrajectoryDataset(
-        trajectories=X_val,
-        labels=y_val,
-        dataname=dataname,
-        label_map=label_map,
-        num_classes=num_classes,
-    )
+    train_subset.normalize()
     
     test_subset = TrajectoryDataset(
         trajectories=X_test,
@@ -193,12 +190,20 @@ def _create_normalized_datasets(
         label_map=label_map,
         num_classes=num_classes,
     )
-    
-    # Normalize using training statistics
-    train_subset.normalize()
-    val_subset.normalize(train_subset.mean, train_subset.std)
     test_subset.normalize(train_subset.mean, train_subset.std)
     
+    if X_val:
+        val_subset = TrajectoryDataset(
+            trajectories=X_val,
+            labels=y_val,
+            dataname=dataname,
+            label_map=label_map,
+            num_classes=num_classes,
+        )
+        val_subset.normalize(train_subset.mean, train_subset.std)
+    else: 
+        val_subset = None
+        
     return train_subset, val_subset, test_subset
 
 
@@ -216,14 +221,17 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
         generator=g,
     )
     
-    valloader = DataLoader(
-        val_subset,
-        batch_size=bs * 2,
-        shuffle=False,
-        num_workers=workers,
-        worker_init_fn=seed_worker,
-        generator=g,
-    )
+    if val_subset:
+        valloader = DataLoader(
+            val_subset,
+            batch_size=bs * 2,
+            shuffle=False,
+            num_workers=workers,
+            worker_init_fn=seed_worker,
+            generator=g,
+        )
+    else: 
+        valloader = None
     
     testloader = DataLoader(
         test_subset,
