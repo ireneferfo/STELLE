@@ -905,7 +905,7 @@ class BaseConceptModel(nn.Module, ABC):
             if method == "nobackprop":
                 return self._compute_nobackprop_attributions()
             elif method == "random":
-                return self._compute_random_attributions(seed)
+                return self._compute_random_attributions()
             elif method == "identity":
                 return self._compute_identity_attributions()
             elif method in ["deeplift", "ig"]:
