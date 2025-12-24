@@ -20,7 +20,7 @@ class StlKernel:
         normalize: bool = True,
         exp_kernel: bool = True,
         sigma2: float = 0.44,
-        samples: int = 10000,
+        samples: int = 5000,
         varn: int = 1,
         points: int = 100,
         boolean: bool = False,
@@ -208,7 +208,7 @@ class StlKernel:
         self, kernel_matrix: torch.Tensor, selfk1: torch.Tensor, selfk2: torch.Tensor
     ) -> torch.Tensor:
         """Normalize kernel matrix."""
-        return kernel_matrix / torch.sqrt(torch.mm(selfk1, selfk2.t()))
+        return kernel_matrix.to(self.device) / torch.sqrt(torch.mm(selfk1, selfk2.t())).to(self.device)
 
     def _exponentiate_kernel(
         self,
