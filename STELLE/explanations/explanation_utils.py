@@ -22,7 +22,7 @@ from STELLE.explanations.explanation_metrics import (
 )
 
 
-def compute_explanations(args, globals = False, save=True, **kwargs):
+def compute_explanations(args, locals = True, globals = False, save=True, verbose = False, **kwargs):
     (model_path_ev, trainloader, testloader, model, config) = args
     device = model.device
     explanation_layer = model.output_activation.to(device)
@@ -30,66 +30,69 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
     local_explanations_true_pred = []
     expl_type = kwargs.get('expl_type', None)
     
-    for i in ["true", "pred"]:
-        explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
-        compute = True
-        if os.path.exists(explpath):
-            try:
-                with open(explpath, "rb") as f:
-                    local_explanations, local_explanations_time = pickle.load(f)
-                compute = hasattr(local_explanations[0], 'explanation_result') # recompute if old version
-                if not compute: 
-                    local_explanations_true_pred.append(local_explanations)
-                    print(f'Loaded local explanations ({i}) from {explpath}.')
+    if locals:
+        for i in ["true", "pred"]:
+            explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
+            compute = True
+            if os.path.exists(explpath):
+                try:
+                    with open(explpath, "rb") as f:
+                        local_explanations, local_explanations_time = pickle.load(f)
+                    compute = hasattr(local_explanations[0], 'explanation_result') # recompute if old version
+                    if not compute: 
+                        local_explanations_true_pred.append(local_explanations)
+                        print(f'Loaded local explanations ({i}) from {explpath}.')
+                    else:
+                        print(f'Old version of local explanations ({i}) loaded from {explpath}. Recomputing.')
+                except Exception as e:
+                    print(f"Failed to load existing local explanations ({i}) ({e}).")
+            
+            if compute:
+                print(f'Getting local explanations ({i})...')
+                start_time = time()
+                if expl_type not in [None, 'base']: # ablation tests
+                    local_explanations = get_alternative_explanations(
+                        model = model,
+                        x=testloader.dataset.trajectories,
+                        y_true=testloader.dataset.labels if i == "true" else None,
+                        trajbyclass=trajbyclass,
+                        layer=explanation_layer,
+                        t_k=config.t_k,
+                        method = kwargs.get('method', 'ig'),
+                        op = kwargs.get('explanation_operation', 'mean'),
+                        expl_type = expl_type,
+                    )
                 else:
-                    print(f'Old version of local explanations ({i}) loaded from {explpath}. Recomputing.')
-            except Exception as e:
-                print(f"Failed to load existing local explanations ({i}) ({e}).")
-        
-        if compute:
-            print(f'Getting local explanations ({i})...')
-            start_time = time()
-            if expl_type not in [None, 'base']: # ablation tests
-                local_explanations = get_alternative_explanations(
-                    model = model,
-                    x=testloader.dataset.trajectories,
-                    y_true=testloader.dataset.labels if i == "true" else None,
-                    trajbyclass=trajbyclass,
-                    layer=explanation_layer,
-                    t_k=config.t_k,
-                    method = kwargs.get('method', 'ig'),
-                    op = kwargs.get('explanation_operation', 'mean'),
-                    expl_type = expl_type,
-                )
-            else:
-                local_explanations = model.get_explanations(
-                    x=testloader.dataset.trajectories,
-                    y_true=testloader.dataset.labels if i == "true" else None,
-                    trajbyclass=trajbyclass,
-                    layer=explanation_layer,
-                    t_k=config.t_k,
-                    method = kwargs.get('method', 'ig'),
-                    op = kwargs.get('explanation_operation', 'mean'),
-                    seed = config.seed
+                    local_explanations = model.get_explanations(
+                        x=testloader.dataset.trajectories,
+                        y_true=testloader.dataset.labels if i == "true" else None,
+                        trajbyclass=trajbyclass,
+                        layer=explanation_layer,
+                        t_k=config.t_k,
+                        method = kwargs.get('method', 'ig'),
+                        op = kwargs.get('explanation_operation', 'mean'),
+                        seed = config.seed
 
-                )
-            for e in local_explanations:
-                e.generate_explanation(
-                    improvement_threshold=config.imp_t_l, enable_postprocessing=True
-                )
-            local_explanations_time = time() - start_time
+                    )
+                for e in local_explanations:
+                    e.generate_explanation(
+                        improvement_threshold=config.imp_t_l, enable_postprocessing=True
+                    )
+                local_explanations_time = time() - start_time
 
-            local_explanations_true_pred.append(local_explanations)
-            if save:
-                with open(explpath, "wb") as f:
-                    pickle.dump((local_explanations, local_explanations_time), f)
-                print(f"Saved local explanations ({i}) to {explpath}")
+                local_explanations_true_pred.append(local_explanations)
+                if save:
+                    with open(explpath, "wb") as f:
+                        pickle.dump((local_explanations, local_explanations_time), f)
+                    print(f"Saved local explanations ({i}) to {explpath}")
 
-    try: 
-        local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
-    except Exception as e:
-        print(e)
-        compute = True
+        try: 
+            local_metrics = get_local_metrics(local_explanations_true_pred, testloader)
+        except Exception as e:
+            print(e)
+            compute = True
+    else: 
+        local_metrics = {}
 
     # global
     if globals:
@@ -121,6 +124,14 @@ def compute_explanations(args, globals = False, save=True, **kwargs):
                 print(f"Saved global explanations to {globpath}")
 
         global_metrics = get_global_metrics(global_explanations)
+        if verbose:
+            try:
+                print('\n\n GLOBAL EXPLANATIONS:\n')
+                for k, v in global_explanations.items():
+                    print(f'class {k}: {v.formula}')
+                print()
+            except Exception as e:
+                print(f'Error in printing explanations: {e}')
     else:
         global_metrics = {}
     del model

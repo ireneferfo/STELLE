@@ -6,6 +6,7 @@ import torch
 from STELLE.data.dataset_loader import get_dataset, load_UCR_from_idx, load_UEA_from_idx
 from STELLE.kernels.kernel_utils import set_kernels_and_concepts
 from STELLE.model.model_utils import train_test_model
+from STELLE.explanations.explanation_utils import compute_explanations
 from STELLE.utils import (
     setup_environment,
     save_results,
@@ -31,7 +32,7 @@ class ExperimentConfig:
     seed: int = 0
     pll: int = 8
     workers: int = 2
-    samples: int = 2500
+    samples: int = 3000
     epochs: int = 1500
     cf: int = 300
     patience: int = 5
@@ -97,11 +98,12 @@ def main():
     
     results =[]
     
-    for fold in range(5):
+    for fold in range(1):
         model_path_fold = os.path.join(paths["model_path_og"], f"fold_{fold}/")
         trainloader, valloader, testloader, base_config  = get_dataset(
             dataset, base_config, paths["dataset_info_path"], validation=False, fold = fold
         )
+        print(trainloader, valloader, testloader)
         print(f'\n >>>>>>>>>>>>>>> FOLD {fold} >>>>>>>>>>>>>>>\n')
         kernel, _, _ = set_kernels_and_concepts(
             trainloader.dataset, paths["phis_path_og"], base_config
@@ -121,13 +123,15 @@ def main():
 
             model, accuracy_results = train_test_model(args, arch_type="base")
             accuracy_results = flatten_dict(accuracy_results)
-            # args_explanations = (model_path_ev, trainloader, testloader, model, config)
-            # local_metrics, global_metrics = compute_explanations(args_explanations, save = False)
+            args_explanations = (model_path_ev, trainloader, testloader, model, config)
+            local_metrics, global_metrics = compute_explanations(args_explanations, save = True, globals = True, locals = False, verbose = True)
             
             result = {
                     "fold": fold,
                     "seed": seed,
                     **accuracy_results,
+                    **local_metrics,
+                    **global_metrics
                 }
             
             result = flatten_dict(result)
