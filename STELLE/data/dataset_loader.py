@@ -68,7 +68,7 @@ def get_dataset(
     trainloader, valloader, testloader = _create_dataloaders(
         train_subset, val_subset, test_subset, config.bs, config.workers, fold)
     
-    return trainloader, testloader, valloader, config
+    return trainloader, valloader, testloader, config
 
 
 def _load_raw_data(dataname, config = None, **kwargs):
