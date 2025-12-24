@@ -154,11 +154,11 @@ def _save_dataset_info(
         lines = [
             f"dataname: {dataname}",
             f"X_train.shape: {X_train.shape}",
-            f"X_val.shape: {X_val.shape if X_val else 0}",
+            f"X_val.shape: {X_val.shape if X_val is not None else 0}",
             f"X_test.shape: {X_test.shape}",
             f"num_classes: {num_classes}",
             f"train_subset: {np.bincount(y_train)}",
-            f"val_subset: {np.bincount(y_val) if y_val else 0}",
+            f"val_subset: {np.bincount(y_val) if y_val is not None else 0}",
             f"test_subset: {np.bincount(y_test)}",
         ]
         print()
@@ -196,7 +196,7 @@ def _create_normalized_datasets(
     )
     test_subset.normalize(train_subset.mean, train_subset.std)
     
-    if X_val:
+    if X_val is not None:
         val_subset = TrajectoryDataset(
             trajectories=X_val,
             labels=y_val,
@@ -225,7 +225,7 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
         generator=g,
     )
     
-    if val_subset:
+    if val_subset is not None:
         valloader = DataLoader(
             val_subset,
             batch_size=bs * 2,
@@ -267,28 +267,28 @@ UEA = [
     "AtrialFibrillation" ,
     "BasicMotions" ,
     "Cricket" ,
-    "DuckDuckGeese" ,
-    "EigenWorms" ,
+    # "DuckDuckGeese" ,
+    # "EigenWorms" ,
+    "ERing" ,
     "Epilepsy" ,
     "EthanolConcentration" ,
-    "ERing" ,
-    "FaceDetection" ,
-    "FingerMovements" ,
+    # "FaceDetection" ,
+    # "FingerMovements" ,
     "HandMovementDirection" ,
     "Handwriting" ,
-    "Heartbeat" ,
-    "Libras" ,
-    "LSST" ,
-    "MotorImagery" ,
-    "NATOPS" ,
-    "PenDigits" ,
-    "PEMS-SF" ,
-    "PhonemeSpectra" ,
-    "RacketSports" ,
-    "SelfRegulationSCP1" ,
-    "SelfRegulationSCP2" ,
-    "StandWalkJump" ,
-    "UWaveGestureLibrary" ,
+    # "Heartbeat" ,
+    "Libras",
+    # "LSST" ,
+    # "MotorImagery" ,
+    # "NATOPS" ,
+    # "PenDigits" ,
+    # "PEMS-SF" ,
+    # "PhonemeSpectra" ,
+    # "RacketSports" ,
+    # "SelfRegulationSCP1" ,
+    # "SelfRegulationSCP2" ,
+    # "StandWalkJump" ,
+    # "UWaveGestureLibrary" ,
 ]
 
 def load_UCR_from_idx(idx):
