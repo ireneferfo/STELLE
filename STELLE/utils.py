@@ -82,7 +82,7 @@ def setup_paths(
     else:
         model_path_og = (
             os.path.join(
-                os.environ["WORK"], f"STELLE/{model_path}{dataname}/checkpoints/"
+                os.environ["WORK"], f"STELLE/{model_path}/{dataname}/checkpoints/"
             )
             if args.demetra
             else os.path.join(model_path, dataname, "checkpoints/")
