@@ -316,8 +316,9 @@ class BaseConceptModel(nn.Module, ABC):
     def _compute_G_phis_from_robs(self, robs: torch.Tensor) -> torch.Tensor:
         """Transform robustness values using class statistics."""
         Geps = torch.exp(self.Geps) if self.tune else self.Geps
-        invstd = 1 / (self.robs_std.cpu() + Geps.unsqueeze(-1).cpu()).to(self.device)
-
+        # invstd = 1 / (self.robs_std.cpu() + Geps.unsqueeze(-1).cpu()).to(self.device)
+        invstd = 1 / (self.robs_std + Geps.unsqueeze(-1))
+        
         return torch.stack(
             [
                 torch.abs(robs.to(self.device) - self.robs_mean[c].to(self.device))
