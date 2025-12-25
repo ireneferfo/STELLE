@@ -58,7 +58,7 @@ class ExperimentConfig:
     pll: int = 8
     workers: int = 2
     samples: int = 2500
-    epochs: int = 1500
+    epochs: int = 2000
     cf: int = 300
     patience: int = 5
     val_every_n_epochs: int = 2
@@ -85,12 +85,14 @@ class ExperimentConfig:
 
     # Training parameters - can be tuned
     d: float = 0.2
-    bs: int = 32
-    lr: float = 1e-4
+    init_crel: float = 1
     init_eps: float = math.exp(1)
     activation_str: str = "relu"
     backprop_method: str = "ig"
-    init_crel: float = 1
+    
+    # tuned
+    bs: int = 32
+    lr: float = 1e-4
     h: int = 256
     n_layers: int = 1
 
@@ -147,7 +149,7 @@ class HyperparameterOptimizer:
                 # "digits": 7,
                 "name": "exp",
                 "type": "range",
-                "bounds": [-6, -2],
+                "bounds": [-6, -3],
                 "value_type": "float",
                 "digits": 1,
             },
@@ -175,12 +177,12 @@ class HyperparameterOptimizer:
             #     "values": [0.1, 0.3],
             #     "value_type": "float",
             # },
-            {
-                "name": "init_crel",
-                "type": "range",
-                "bounds": [1, 8],
-                "value_type": "int",
-            },
+            # {
+            #     "name": "init_crel",
+            #     "type": "range",
+            #     "bounds": [1, 8],
+            #     "value_type": "int",
+            # },
             # {
             #     "name": "init_eps",
             #     "type": "choice",
@@ -197,7 +199,7 @@ class HyperparameterOptimizer:
                 # Start with Sobol for exploration
                 GenerationStep(
                     generator=Generators.SOBOL,
-                    num_trials=20,  # Initial random trials
+                    num_trials=50,  # Initial random trials
                     model_kwargs={"seed": 0},
                 ),
                 # Then switch to Bayesian optimization with qLogNEI
@@ -466,8 +468,8 @@ def main():
     task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
     print(f'{task_id=}')
     base_config = ExperimentConfig()
-    base_path = "paper_results/tuning"
-    model_path = "tuning"
+    base_path = "paper_results/tuning_last"
+    model_path = "tuning_last"
     
     if task_id is None: 
         dataset = args.dataset

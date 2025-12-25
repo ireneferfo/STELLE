@@ -33,11 +33,11 @@ class ExperimentConfig:
     pll: int = 8
     workers: int = 2
     samples: int = 3000
-    epochs: int = 1500
-    cf: int = 300
+    epochs: int = 500
+    cf: int = 10
     patience: int = 5
     val_every_n_epochs: int = 2
-    verbose: int = 20
+    verbose: int = 5
     logging: bool = False
 
     # Kernel parameters - can be tuned
@@ -98,17 +98,17 @@ def main():
     
     results =[]
     
-    for fold in range(1):
+    for fold in range(5):
+        print(f'\n >>>>>>>>>>>>>>> FOLD {fold} >>>>>>>>>>>>>>>\n')
         model_path_fold = os.path.join(paths["model_path_og"], f"fold_{fold}/")
+        os.makedirs(model_path_fold, exist_ok=True)
         trainloader, valloader, testloader, base_config  = get_dataset(
             dataset, base_config, paths["dataset_info_path"], validation=False, fold = fold
         )
-        print(trainloader, valloader, testloader)
-        print(f'\n >>>>>>>>>>>>>>> FOLD {fold} >>>>>>>>>>>>>>>\n')
         kernel, _, _ = set_kernels_and_concepts(
             trainloader.dataset, paths["phis_path_og"], base_config
         ) 
-        for seed in range(3):
+        for seed in range(1):
             torch.cuda.empty_cache()
             
             config = replace(base_config, seed=seed)
@@ -118,13 +118,12 @@ def main():
                 )
             print(f"Model ID: {model_id}")
             model_path_ev = os.path.join(model_path_fold, f"{model_id}.pt")
-            
             args = (kernel, trainloader, valloader, testloader, model_path_ev, config)
 
             model, accuracy_results = train_test_model(args, arch_type="base")
             accuracy_results = flatten_dict(accuracy_results)
             args_explanations = (model_path_ev, trainloader, testloader, model, config)
-            local_metrics, global_metrics = compute_explanations(args_explanations, save = True, globals = True, locals = False, verbose = True)
+            local_metrics, global_metrics = {}, {}# compute_explanations(args_explanations, save = True, globals = True, locals = False, verbose = True)
             
             result = {
                     "fold": fold,
