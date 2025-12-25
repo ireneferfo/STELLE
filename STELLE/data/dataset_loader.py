@@ -249,7 +249,7 @@ def _create_dataloaders(train_subset, val_subset, test_subset, bs, workers, seed
     return trainloader, valloader, testloader
 
 
-UCR = ['BeetleFly',
+UCR = [# 'BeetleFly',
     'ECG200',
     'ECG5000', 
     
