@@ -7,7 +7,8 @@ import re
 import itertools
 from typing import List, Optional, Tuple, Dict
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
+import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -1141,6 +1142,13 @@ class ClassExplanation(ExplanationBase):
         return fig
 
 
+def generate_single_explanation(explanation, imp_t_l):
+    explanation.generate_explanation(
+        improvement_threshold=imp_t_l, 
+        enable_postprocessing=False
+    )
+    return explanation
+
 def get_training_explanations(
     model,
     trainloader,
@@ -1149,7 +1157,7 @@ def get_training_explanations(
     explanation_operation: str | None = "mean",
     imp_t_l=0.01,
     imp_t_g=0.01,
-    t_k=0.95,
+    t_k=0.8,
     k=None,
     pll=1,
 ):
@@ -1163,12 +1171,20 @@ def get_training_explanations(
         k=k,
         op=explanation_operation,
     )
+    
     if len(training_local_explanations) > 0:
-        for e in training_local_explanations:
-            # without final postprocessing, ie simplifications and such (faster)
-            e.generate_explanation(
-                improvement_threshold=imp_t_l, enable_postprocessing=False
-            )
+        # for e in training_local_explanations:
+        #     # without final postprocessing, ie simplifications and such (faster)
+        #     e.generate_explanation(
+        #         improvement_threshold=imp_t_l, enable_postprocessing=False
+        #     )
+        with ProcessPoolExecutor(max_workers=pll) as executor:
+            training_local_explanations = list(executor.map(
+                generate_single_explanation,
+                training_local_explanations,
+                [imp_t_l] * len(training_local_explanations)
+            ))
+        
         class_explanations = ClassExplanation(
             training_local_explanations, is_training=True
         )

@@ -1048,25 +1048,39 @@ class BaseConceptModel(nn.Module, ABC):
         explanations = []
 
         if k is None:
-            # Adaptive top-k based on cumulative score threshold
-            sorted_indices = torch.argsort(
+            sorted_scores, sorted_indices = torch.sort(
                 discriminative_scores, descending=True, dim=1
             )
-
+            
+            total_scores = discriminative_scores.sum(dim=1, keepdim=True)
+            cumsum = torch.cumsum(sorted_scores, dim=1)
+            cumsum_ratio = cumsum / total_scores.clamp(min=1e-8)
+            
+            # Find first index where cumsum >= t_k for each sample
+            n_selected = (cumsum_ratio < t_k).sum(dim=1) + 1
+            n_selected = n_selected.clamp(max=sorted_indices.size(1))
+            
+            # Adaptive top-k based on cumulative score threshold
+            # sorted_indices = torch.argsort(
+            #     discriminative_scores, descending=True, dim=1
+            # )
             for i in range(len(x)):
-                cumulative_score = 0
-                total_score = discriminative_scores[i].sum().item()
+                n = n_selected[i].item()
+                concept_indices = sorted_indices[i][:n]
 
-                if total_score > 0:
-                    for n, idx in enumerate(sorted_indices[i]):
-                        cumulative_score += discriminative_scores[i][idx].item()
-                        if cumulative_score / total_score >= t_k:
-                            break
-                    n_selected = n + 1
-                else:
-                    n_selected = 0
+            #     cumulative_score = 0
+            #     total_score = discriminative_scores[i].sum().item()
 
-                concept_indices = sorted_indices[i][:n_selected]
+            #     if total_score > 0:
+            #         for n, idx in enumerate(sorted_indices[i]):
+            #             cumulative_score += discriminative_scores[i][idx].item()
+            #             if cumulative_score / total_score >= t_k:
+            #                 break
+            #         n_selected = n + 1
+            #     else:
+            #         n_selected = 0
+
+            #     concept_indices = sorted_indices[i][:n_selected]
                 top_concepts = [self.concepts[idx] for idx in concept_indices]
 
                 explanations.append(

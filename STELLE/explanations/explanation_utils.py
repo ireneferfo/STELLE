@@ -115,7 +115,8 @@ def compute_explanations(args, locals = True, globals = False, save=True, verbos
                 model, trainloader, 
                 explanation_layer, kwargs.get('method', 'ig'), 
                 config.imp_t_l, config.imp_t_g, config.t_k, 
-                explanation_operation = kwargs.get('explanation_operation', 'mean')
+                explanation_operation = kwargs.get('explanation_operation', 'mean'),
+                pll = kwargs.get('pll', 1)
             )
             global_explanations_time = time() - start_time
             if save:
