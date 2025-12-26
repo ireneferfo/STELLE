@@ -364,80 +364,79 @@ def readability_local(explanations, y=None):
         return result
     
 def readability_global(class_expl):
-    try:
-        pre_metrics = list(class_expl.explanations_readability_pre.values())
-        post_metrics = list(class_expl.explanations_readability_post.values())
-        
-        def _valid(m):
-            if m is None:
-                return False
-            try:
-                return not any(np.isnan(x) for x in m)
-            except Exception:
-                return False
-        
-        def to_arrays(metrics):
-            clean = [m for m in metrics if _valid(m)]
-            if not clean:
-                return np.array([]), np.array([]), np.array([])
-            nodes, nvars, nphis = zip(*clean)
-            return (
-                np.array(nodes, dtype=float),
-                np.array(nvars, dtype=float),
-                np.array(nphis, dtype=float),
-            )
-        
-        pre_nodes, pre_nvars, pre_nphis = to_arrays(pre_metrics)
-        post_nodes, post_nvars, post_nphis = to_arrays(post_metrics)
-        
-        def safe_round(x):
-            try:
-                if np.isnan(x):
-                    return float("nan")
-                return round(float(x), 2)
-            except Exception:
+    pre_metrics = list(class_expl.explanation_readability_pre.values())
+    post_metrics = list(class_expl.explanation_readability_post.values())
+    
+    def _valid(m):
+        if m is None:
+            return False
+        try:
+            return not any(np.isnan(x) for x in m)
+        except Exception:
+            return False
+    
+    def to_arrays(metrics):
+        clean = [m for m in metrics if _valid(m)]
+        if not clean:
+            return np.array([]), np.array([]), np.array([])
+        nodes, nvars, nphis = zip(*clean)
+        return (
+            np.array(nodes, dtype=float),
+            np.array(nvars, dtype=float),
+            np.array(nphis, dtype=float),
+        )
+    
+    pre_nodes, pre_nvars, pre_nphis = to_arrays(pre_metrics)
+    post_nodes, post_nvars, post_nphis = to_arrays(post_metrics)
+    
+    def safe_round(x):
+        try:
+            if np.isnan(x):
                 return float("nan")
-        
-        def round_tuple(t):
-            return tuple(safe_round(x) for x in t)
-        
-        def safe_mean(arr):
-            """Compute mean, returning nan for empty arrays"""
-            return np.nan if len(arr) == 0 else np.nanmean(arr)
-        
-        def safe_std(arr):
-            """Compute std, returning nan for empty arrays"""
-            return np.nan if len(arr) == 0 else np.nanstd(arr)
-        
-        return {
-            "pre": {
-                "mean": round_tuple(
-                    (safe_mean(pre_nodes), safe_mean(pre_nvars), safe_mean(pre_nphis))
-                ),
-                "std": round_tuple(
-                    (safe_std(pre_nodes), safe_std(pre_nvars), safe_std(pre_nphis))
-                ),
-            },
-            "post": {
-                "mean": round_tuple(
-                    (safe_mean(post_nodes), safe_mean(post_nvars), safe_mean(post_nphis))
-                ),
-                "std": round_tuple(
-                    (safe_std(post_nodes), safe_std(post_nvars), safe_std(post_nphis))
-                ),
-            },
-        }
-    except Exception as e:
-        # Return a valid structure with all NaN values instead of None
-        nan_stats = {
-            "mean": (float("nan"), float("nan"), float("nan")),
-            "std": (float("nan"), float("nan"), float("nan")),
-        }
-        print(e)
-        return {
-            "pre": nan_stats.copy(),
-            "post": nan_stats.copy(),
-        }
+            return round(float(x), 2)
+        except Exception:
+            return float("nan")
+    
+    def round_tuple(t):
+        return tuple(safe_round(x) for x in t)
+    
+    def safe_mean(arr):
+        """Compute mean, returning nan for empty arrays"""
+        return np.nan if len(arr) == 0 else np.nanmean(arr)
+    
+    def safe_std(arr):
+        """Compute std, returning nan for empty arrays"""
+        return np.nan if len(arr) == 0 else np.nanstd(arr)
+    
+    return {
+        "pre": {
+            "mean": round_tuple(
+                (safe_mean(pre_nodes), safe_mean(pre_nvars), safe_mean(pre_nphis))
+            ),
+            "std": round_tuple(
+                (safe_std(pre_nodes), safe_std(pre_nvars), safe_std(pre_nphis))
+            ),
+        },
+        "post": {
+            "mean": round_tuple(
+                (safe_mean(post_nodes), safe_mean(post_nvars), safe_mean(post_nphis))
+            ),
+            "std": round_tuple(
+                (safe_std(post_nodes), safe_std(post_nvars), safe_std(post_nphis))
+            ),
+        },
+    }
+    # except Exception as e:
+        # # Return a valid structure with all NaN values instead of None
+        # nan_stats = {
+        #     "mean": (float("nan"), float("nan"), float("nan")),
+        #     "std": (float("nan"), float("nan"), float("nan")),
+        # }
+        # print(e)
+        # return {
+        #     "pre": nan_stats.copy(),
+        #     "post": nan_stats.copy(),
+        # }
 
 def _division_perc(
     classexplanation,
@@ -496,7 +495,7 @@ def _division_perc(
             - Empty target trajectories → returns nan for class c
             - Boolean φ → treats all opponent trajectories as mismatches
     """
-    normalize = classexplanation.normalize  # for quantitative
+    normalize = classexplanation.normalize_robustness  # for quantitative
     opp_trajs = classexplanation._get_opponent_trajectories(c)
     if target_trajectories is None or len(target_trajectories) == 0:
         class_scores[c] = float("nan")
@@ -571,7 +570,7 @@ def evaluate_class_explanations(
 ):
     x = test_subset.trajectories.cpu()
     y = model.predict(x).cpu()
-    y_true = test_subset.y.cpu()
+    y_true = test_subset.labels.cpu()
 
     if filter:
         tokeep = y != y_true if incorrect else y == y_true
@@ -594,9 +593,9 @@ def evaluate_class_explanations(
             division_perc_byclass[c] = float("nan")
         return division_perc_byclass, float("nan")
 
-    for c, phi in class_explanations.explanations.items():
+    for c, explresult in class_explanations.class_explanations.items():
         target_trajectories = traj_by_class.get(c, [])
-
+        phi = explresult.formula
         # Skip if no explanation for this class
         if phi is None:
             division_perc_byclass[c] = float("nan")
@@ -626,7 +625,7 @@ def evaluate_class_explanations_f1(
 ):
     x = test_subset.trajectories.cpu()
     y = model.predict(x).cpu()
-    y_true = test_subset.y.cpu()
+    y_true = test_subset.labels.cpu()
 
     if filter:
         tokeep = y != y_true if incorrect else y == y_true
@@ -672,7 +671,8 @@ def evaluate_class_explanations_f1(
     # Initialize cumulative counters
     cum_tp, cum_fp, cum_fn, cum_tn = 0, 0, 0, 0
 
-    for c, phi in class_explanations.explanations.items():
+    for c, explresult in class_explanations.class_explanations.items():
+        phi = explresult.formula
         target_trajectories = test_traj_by_class.get(c, [])
         opp_trajs = class_explanations._get_opponent_trajectories(c)
 
@@ -697,9 +697,9 @@ def evaluate_class_explanations_f1(
 
         # Compute robustness for target and opponent trajectories
         target_rho = phi.quantitative(
-            target_trajectories, normalize=class_explanations.normalize
+            target_trajectories, normalize=class_explanations.normalize_robustness
         )
-        opp_rho = phi.quantitative(opp_trajs, normalize=class_explanations.normalize)
+        opp_rho = phi.quantitative(opp_trajs, normalize=class_explanations.normalize_robustness)
 
         # Class-specific metrics
         tp = (target_rho >= 0).sum().item()
@@ -821,7 +821,6 @@ def get_global_metrics(class_explanations, model, testloader):
     _, global_division_correct = evaluate_class_explanations(
         model, class_explanations, testloader.dataset, filter=True
     )
-
     # only incorrect
     _, global_division_incorrect = evaluate_class_explanations(
         model, class_explanations, testloader.dataset, filter=True, incorrect=True

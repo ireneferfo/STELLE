@@ -115,7 +115,6 @@ class LocalExplanation(ExplanationBase):
             self._set_empty_explanation()
             return None
         
-        
         # Finalize explanation
         if enable_postprocessing:
             self.explanation_result_pre = self._create_explanation_result(explanation_formula)
@@ -126,62 +125,58 @@ class LocalExplanation(ExplanationBase):
         
         self.explanation_result_post = explanation_result
         return explanation_result
-    
-    def _postprocess_formulae(self, formulae: List) -> List:
-        """
-        Post-process formulae to maximize separation.
         
-        Args:
-            formulae: Formulae to process
-            
-        Returns:
-            Post-processed formulae
-        """
+    def _postprocess_formulae(self, formulae: List) -> List:
+        """Post-process formulae to maximize separation."""
         if not formulae:
             return []
         
         trajectory_batch = self.trajectory.unsqueeze(0)
+        
+        # Pre-collect all opponent trajectories into a single batch
+        opponent_trajectories = []
+        for class_label, class_trajectories in self.trajectories_by_class.items():
+            if class_label == self.target_class:
+                continue
+            opponent_trajectories.extend(class_trajectories)
+        
+        # Stack into a single batch (N, T, F) where N is number of opponents
+        if opponent_trajectories:
+            opponent_batch = torch.stack(opponent_trajectories)
+        else:
+            opponent_batch = None
+        
         processed_formulae = []
         
         for formula in formulae:
             # Compute target robustness
             target_robustness = self.compute_robustness(formula, trajectory_batch)
             
-            # Compute opponent robustness values
-            opponent_robustness = []
-            for class_label, class_trajectories in self.trajectories_by_class.items():
-                if class_label == self.target_class:
-                    continue
-                for traj in class_trajectories:
-                    robustness = self.compute_robustness(formula, traj.unsqueeze(0))
-                    opponent_robustness.append(robustness)
-            
-            if opponent_robustness:
-                opponent_robustness = torch.cat(opponent_robustness)
+            # Compute ALL opponent robustness in one batch call
+            if opponent_batch is not None:
+                opponent_robustness = self.compute_robustness(formula, opponent_batch)
             else:
                 opponent_robustness = torch.tensor([], device=self.device)
             
             # Determine if negation improves separation
-            less_than_count = (opponent_robustness < target_robustness).sum().item()
-            greater_than_count = (opponent_robustness > target_robustness).sum().item()
-            
-            if greater_than_count > less_than_count:
-                formula = Not(formula)
-                target_robustness = -target_robustness
-                opponent_robustness = -opponent_robustness
-            
-            # Find optimal threshold translation
             if opponent_robustness.numel() > 0:
+                less_than_count = (opponent_robustness < target_robustness).sum().item()
+                greater_than_count = (opponent_robustness > target_robustness).sum().item()
+                
+                if greater_than_count > less_than_count:
+                    formula = Not(formula)
+                    target_robustness = -target_robustness
+                    opponent_robustness = -opponent_robustness
+                
+                # Find optimal threshold translation
                 valid_opponents = opponent_robustness[opponent_robustness < target_robustness]
                 if valid_opponents.numel() > 0:
                     closest_opponent = torch.max(valid_opponents).item()
                     translation = (target_robustness.item() + closest_opponent) / 2
                 else:
-                    # should never happen
-                    translation = 0 # target_robustness.item()
+                    translation = 0
             else:
-                # should never happen
-                translation = 0 # target_robustness.item()
+                translation = 0
             
             # Apply translation
             translated_formula = rescale_var_thresholds(formula, -translation)

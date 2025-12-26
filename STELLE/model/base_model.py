@@ -36,6 +36,15 @@ class BaseModelConfig:
     crel_norm: bool = False
     output_activation: Any = field(default_factory=lambda: nn.Softsign())
 
+class ForwardWrapper(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x):
+        class_scores, _, _, _ = self.model.forward(x, trainingmode=False)
+        return class_scores
+            
 
 class BaseConceptModel(nn.Module, ABC):
     """
@@ -725,6 +734,32 @@ class BaseConceptModel(nn.Module, ABC):
     # ========================================================================
     # Validation
     # ========================================================================
+    
+    def predict(
+        self,
+        x: torch.Tensor,
+        return_probs: bool = False,
+        ):
+
+        self.eval()
+        
+        # Single batch prediction
+        with torch.no_grad():
+            x = x.to(self.device)
+            
+            # Forward pass
+            class_scores, _, _, _  = self.forward(x, trainingmode=False)
+            
+            # Get predictions
+            if return_probs:
+                # Apply softmax to get probabilities
+                predictions = torch.softmax(class_scores, dim=1).cpu()
+            else:
+                # Get class labels
+                predictions = class_scores.argmax(dim=1).cpu()
+            
+            return predictions
+
 
     def validate(self, valloader, by_class_stats: bool = False) -> Dict[str, Any]:
         """Validate the model on validation data."""
@@ -829,14 +864,14 @@ class BaseConceptModel(nn.Module, ABC):
             Top concept indices, attribution weights, and explanations
         """
         self.eval()
-
+        s = time()
         # Get model predictions
         with torch.no_grad():
             x = x.to(self.device)
             class_scores, _, crelGs_raw, _ = self.forward(x, trainingmode=False)
         crelGs = self.output_activation(crelGs_raw) if norm else crelGs_raw
         y_pred = class_scores.argmax(dim=1).cpu()
-
+        
         # Filter for correct predictions if requested
         if filter_onlycorrect and y_true is not None:
             x, y_pred, crelGs, class_scores = self._filter_correct_predictions(
@@ -849,7 +884,7 @@ class BaseConceptModel(nn.Module, ABC):
         attribution_weights = self._compute_attributions(
             x_requires_grad, targets, layer, method, seed
         ) # (batch, phis * classes)
-
+        
         # Compute final attribution matrix
         final_matrix = self._compute_final_attributions(
             crelGs, attribution_weights, y_pred
@@ -862,12 +897,11 @@ class BaseConceptModel(nn.Module, ABC):
         if getmatrix:
             grouped_matrix = self._group_matrix_by_class(final_matrix, targets)
             return grouped_matrix, y_pred
-
+        
         # Generate explanations
         explanations = self._generate_explanations(
             x, y_true, y_pred, discriminative_scores, trajbyclass, k, t_k
         )
-
         return explanations
 
     def _filter_correct_predictions(
@@ -930,18 +964,16 @@ class BaseConceptModel(nn.Module, ABC):
         self, x: torch.Tensor, targets: torch.Tensor, layer, method: str
     ) -> torch.Tensor:
         """Compute gradient-based attributions (DeepLift or Integrated Gradients)."""
-        
-        class ForwardWrapper(nn.Module):
-            def __init__(self, model):
-                super().__init__()
-                self.model = model
-
-            def forward(self, x):
-                class_scores, _, _, _ = self.model.forward(x, trainingmode=False)
-                return class_scores
 
         wrapper_model = ForwardWrapper(self)
 
+        self.eval()
+        for p in self.parameters():
+            p.requires_grad_(False)
+
+        for p in layer.parameters():
+            p.requires_grad_(True)
+            
         if method == "deeplift":
             from captum.attr import LayerDeepLift
             attributor = LayerDeepLift(wrapper_model, layer)
@@ -957,12 +989,15 @@ class BaseConceptModel(nn.Module, ABC):
                 target=targets.to(x.device),
                 baselines=baseline,
                 attribute_to_layer_input=True,
+                n_steps=15,
             )
             .detach()
-            .cpu()
         )
+        
+        for p in self.parameters():
+            p.requires_grad_(True)
 
-        return attribution_weights
+        return attribution_weights.cpu()
 
     def _compute_final_attributions(
         self,
@@ -1048,9 +1083,11 @@ class BaseConceptModel(nn.Module, ABC):
         explanations = []
 
         if k is None:
-            sorted_scores, sorted_indices = torch.sort(
-                discriminative_scores, descending=True, dim=1
-            )
+            max_k = min(100, discriminative_scores.size(1)) # most will never use all concepts, no need to sort them all
+            sorted_scores, sorted_indices = torch.topk(discriminative_scores, k = max_k, dim= 1)
+            # sorted_scores, sorted_indices = torch.sort(
+            #     discriminative_scores, descending=True, dim=1
+            # )
             
             total_scores = discriminative_scores.sum(dim=1, keepdim=True)
             cumsum = torch.cumsum(sorted_scores, dim=1)
@@ -1064,9 +1101,14 @@ class BaseConceptModel(nn.Module, ABC):
             # sorted_indices = torch.argsort(
             #     discriminative_scores, descending=True, dim=1
             # )
+            x_cpu = x.detach().cpu()
+            y_pred_cpu = y_pred.cpu()
+            y_true_cpu = y_true.cpu() if y_true is not None else None
+
+            concepts = self.concepts
             for i in range(len(x)):
                 n = n_selected[i].item()
-                concept_indices = sorted_indices[i][:n]
+                concept_indices = sorted_indices[i][:n].tolist()
 
             #     cumulative_score = 0
             #     total_score = discriminative_scores[i].sum().item()
@@ -1081,13 +1123,13 @@ class BaseConceptModel(nn.Module, ABC):
             #         n_selected = 0
 
             #     concept_indices = sorted_indices[i][:n_selected]
-                top_concepts = [self.concepts[idx] for idx in concept_indices]
+                top_concepts = [concepts[idx] for idx in concept_indices]
 
                 explanations.append(
                     LocalExplanation(
-                        trajectory=x[i].cpu(),
-                        true_label=y_true[i].item() if y_true is not None else None,
-                        predicted_label=y_pred[i].item(),
+                        trajectory=x_cpu[i],
+                        true_label=y_true_cpu[i],
+                        predicted_label=y_pred_cpu[i],
                         candidate_formulae=top_concepts,
                         trajectories_by_class=trajbyclass,
                     )
