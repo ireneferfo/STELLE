@@ -54,7 +54,7 @@ class ExperimentConfig:
     num_classes: int = 4
 
     # Fixed parameters
-    seed: int = 0
+    seed: int = 1000
     pll: int = 8
     workers: int = 2
     samples: int = 2500
