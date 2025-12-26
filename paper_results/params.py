@@ -95,14 +95,14 @@ PARAMS = {
                  'init_crel': 1,
                  'epochs': 4
                  },
-    # 'BasicMotions': {'lr': 1e-6,
-    #              'bs': 32,
-    #              'h': 512,
-    #              'n_layers': 0,
-    #              'd': 0.2,
-    #              'init_crel': 1,
-    #              'epochs': 4
-    #              },
+    'BasicMotions': {'lr': 5e-4,
+                 'bs': 32,
+                 'h': 128,
+                 'n_layers': 2,
+                 'd': 0.2,
+                 'init_crel': 1,
+                 'epochs': 1050
+                 },
     # 'Cricket': {'lr': 1e-6,
     #              'bs': 32,
     #              'h': 512,
