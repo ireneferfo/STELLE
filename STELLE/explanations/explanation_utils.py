@@ -124,11 +124,11 @@ def compute_explanations(args, locals = True, globals = False, save=True, verbos
                     pickle.dump((global_explanations, global_explanations_time), f)
                 print(f"Saved global explanations to {globpath}")
 
-        global_metrics = get_global_metrics(global_explanations)
+        global_metrics = get_global_metrics(global_explanations, model = model, testloader=testloader)
         if verbose:
             try:
                 print('\n\n GLOBAL EXPLANATIONS:\n')
-                for k, v in global_explanations.items():
+                for k, v in global_explanations.class_explanations.items():
                     print(f'class {k}: {v.formula}')
                 print()
             except Exception as e:
@@ -223,8 +223,6 @@ def save_metrics(model_path_ev, config, local_metrics, global_metrics):
         print(f"Failed to save metrics ({e}).")
         
         
-# TODO matching di shapes
-
 def get_alternative_explanations(
     model,
     x: torch.Tensor,

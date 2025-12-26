@@ -1,14 +1,12 @@
 """
 Class Explanation - Class-level explanations from local explanations.
 """
-
 import torch
 import re
 import itertools
 from typing import List, Optional, Tuple, Dict
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
-import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -96,19 +94,19 @@ class ClassExplanation(ExplanationBase):
 
             # Count None explanations
             none_count = sum(
-                1 for exp in class_explanations if exp.explanation_result is None
+                1 for exp in class_explanations if exp.explanation_result_post is None
             )
             total_count = len(class_explanations)
-            if total_count > 0:
+            if none_count > 0:
                 print(
                     f"Class {class_label}: {none_count} invalid explanations out of {total_count}"
                 )
 
             self.local_explanations_by_class[class_label] = class_explanations
             self.formulae_by_class[class_label] = [
-                exp.explanation_result.formula
+                exp.explanation_result_post.formula
                 for exp in class_explanations
-                if exp.explanation_result and exp.explanation_result.formula is not None
+                if exp.explanation_result_post and exp.explanation_result_post.formula is not None
             ]
 
             # Store trajectories for this class
@@ -130,10 +128,10 @@ class ClassExplanation(ExplanationBase):
 
         for class_label, explanations in self.local_explanations_by_class.items():
             percentages = [
-                exp.explanation_result.separation_percentage
+                exp.explanation_result_post.separation_percentage
                 for exp in explanations
-                if exp.explanation_result
-                and exp.explanation_result.separation_percentage is not None
+                if exp.explanation_result_post
+                and exp.explanation_result_post.separation_percentage is not None
             ]
             valid_percentages = [p for p in percentages if p is not None]
             separation_percentages[class_label] = (
@@ -447,7 +445,7 @@ class ClassExplanation(ExplanationBase):
         separated = (class_robustness < min_opponent.unsqueeze(1)) | (
             class_robustness > max_opponent.unsqueeze(1)
         )
-
+        separated = separated.squeeze()
         return separated.int().T
 
     def _find_optimal_formula_set(
@@ -469,7 +467,7 @@ class ClassExplanation(ExplanationBase):
         Returns:
             List of selected formula indices
         """
-        num_trajectories, num_formulae = separation_matrix.shape
+        _, num_formulae = separation_matrix.shape
 
         # Handle simple cases
         if num_formulae == 1:
@@ -940,9 +938,9 @@ class ClassExplanation(ExplanationBase):
 
         # Extract formulae
         formulae = [
-            exp.explanation_result.formula
+            exp.explanation_result_post.formula
             for exp in augmented_explanations
-            if exp.explanation_result and exp.explanation_result.formula is not None
+            if exp.explanation_result_post and exp.explanation_result_post.formula is not None
         ]
 
         if not formulae:
@@ -1142,13 +1140,6 @@ class ClassExplanation(ExplanationBase):
         return fig
 
 
-def generate_single_explanation(explanation, imp_t_l):
-    explanation.generate_explanation(
-        improvement_threshold=imp_t_l, 
-        enable_postprocessing=False
-    )
-    return explanation
-
 def get_training_explanations(
     model,
     trainloader,
@@ -1160,7 +1151,8 @@ def get_training_explanations(
     t_k=0.8,
     k=None,
     pll=1,
-):
+    ):
+    
     training_local_explanations = model.get_explanations(
         x=trainloader.dataset.trajectories,
         y_true=trainloader.dataset.labels,
@@ -1172,19 +1164,14 @@ def get_training_explanations(
         op=explanation_operation,
     )
     
+    
     if len(training_local_explanations) > 0:
-        # for e in training_local_explanations:
-        #     # without final postprocessing, ie simplifications and such (faster)
-        #     e.generate_explanation(
-        #         improvement_threshold=imp_t_l, enable_postprocessing=False
-        #     )
-        with ProcessPoolExecutor(max_workers=pll) as executor:
-            training_local_explanations = list(executor.map(
-                generate_single_explanation,
-                training_local_explanations,
-                [imp_t_l] * len(training_local_explanations)
-            ))
-        
+        for e in training_local_explanations:
+            # without final postprocessing, ie simplifications and such (faster)
+            e.generate_explanation(
+                improvement_threshold=imp_t_l, enable_postprocessing=False
+            )
+            
         class_explanations = ClassExplanation(
             training_local_explanations, is_training=True
         )
