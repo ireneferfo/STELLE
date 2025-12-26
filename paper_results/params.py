@@ -77,7 +77,16 @@ PARAMS = {
     #     "init_crel": 4,
     #     "epochs": 200,
     # },
+    
     # UEA
+    # 'ArticularyWordRecognition': {'lr': 1e-6,
+    #              'bs': 32,
+    #              'h': 512,
+    #              'n_layers': 0,
+    #              'd': 0.2,
+    #              'init_crel': 1,
+    #              'epochs': 4
+    #              },
     'AtrialFibrillation': {'lr': 1e-6,
                  'bs': 32,
                  'h': 512,
@@ -86,6 +95,22 @@ PARAMS = {
                  'init_crel': 1,
                  'epochs': 4
                  },
+    # 'BasicMotions': {'lr': 1e-6,
+    #              'bs': 32,
+    #              'h': 512,
+    #              'n_layers': 0,
+    #              'd': 0.2,
+    #              'init_crel': 1,
+    #              'epochs': 4
+    #              },
+    # 'Cricket': {'lr': 1e-6,
+    #              'bs': 32,
+    #              'h': 512,
+    #              'n_layers': 0,
+    #              'd': 0.2,
+    #              'init_crel': 1,
+    #              'epochs': 4
+    #              },
     # "Epilepsy": {
     #     "lr": 5e-4,
     #     "bs": 64,
