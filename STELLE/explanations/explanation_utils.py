@@ -113,8 +113,8 @@ def compute_explanations(args, locals = True, globals = False, save=True, verbos
 
             global_explanations = get_training_explanations(
                 model, trainloader, 
-                explanation_layer, kwargs.get('method', 'ig'), 
-                config.imp_t_l, config.imp_t_g, config.t_k, 
+                explanation_layer= explanation_layer, backprop_method= kwargs.get('method', 'ig'), 
+                imp_t_l = config.imp_t_l, imp_t_g = config.imp_t_g, t_k = config.t_k, 
                 explanation_operation = kwargs.get('explanation_operation', 'mean'),
                 pll = kwargs.get('pll', 1)
             )
