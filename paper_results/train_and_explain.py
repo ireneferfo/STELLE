@@ -22,8 +22,8 @@ class ExperimentConfig:
     """Base configuration for experiments."""
 
     # Synthetic data parameters
-    n_train: int = 500
-    n_test: int = 200
+    n_train: int = 50
+    n_test: int = 20
     nvars: int = 5
     series_length: int = 100
     num_classes: int = 4
@@ -33,10 +33,10 @@ class ExperimentConfig:
     pll: int = 8
     workers: int = 2
     samples: int = 3000
-    epochs: int = 500
+    epochs: int = 3
     cf: int = 10
-    patience: int = 5
-    val_every_n_epochs: int = 2
+    patience: int = 0
+    val_every_n_epochs: int = 0
     verbose: int = 5
     logging: bool = False
 
@@ -92,12 +92,13 @@ def main():
     os.makedirs(paths["model_path_og"], exist_ok=True)
     
     params = get_params(dataset)
+    print(params)
     base_config = replace(base_config, **params)
     print(f"Run ID: {paths['run_id']}\n")
     save_run_settings(paths["results_dir"], base_config, **locals())
     
     results =[]
-    
+
     for fold in range(5):
         print(f'\n >>>>>>>>>>>>>>> FOLD {fold} >>>>>>>>>>>>>>>\n')
         model_path_fold = os.path.join(paths["model_path_og"], f"fold_{fold}/")
@@ -123,7 +124,7 @@ def main():
             model, accuracy_results = train_test_model(args, arch_type="base")
             accuracy_results = flatten_dict(accuracy_results)
             args_explanations = (model_path_ev, trainloader, testloader, model, config)
-            local_metrics, global_metrics = {}, {}# compute_explanations(args_explanations, save = True, globals = True, locals = False, verbose = True)
+            local_metrics, global_metrics = compute_explanations(args=args_explanations, save = True, globals = True, locals = False, verbose = True, pll = config.pll)
             
             result = {
                     "fold": fold,
