@@ -22,23 +22,27 @@ def get_dataset(
     dataset_info_path,
     validation = True,
     fold = 0,
+    loaders = True,
+    verbose = True,
     **kwargs
 ):
     """Load and prepare dataset with train/val/test splits and dataloaders."""
-    print(f'Getting dataset {dataname}...')
+    if verbose: 
+        print(f'Getting dataset {dataname}...')
     # Load raw data
     X_train, y_train, X_test, y_test, num_classes, diff_params = _load_raw_data(
-        dataname, config, **kwargs
+        dataname, config, verbose, **kwargs
     )
     
     X_train, y_train, X_test, y_test = resample_data(X_train, y_train, X_test, y_test, random_state=fold)
-    config = replace(config, 
-                    n_train= X_train.shape[0],
-                    n_test= X_test.shape[0],
-                    nvars = X_train.shape[1],
-                    series_length= X_train.shape[2],
-                    num_classes= num_classes)
-        
+    if config is not None:
+        config = replace(config, 
+                        n_train= X_train.shape[0],
+                        n_test= X_test.shape[0],
+                        nvars = X_train.shape[1],
+                        series_length= X_train.shape[2],
+                        num_classes= num_classes)
+            
     # Preprocess data
     X_train, X_test, y_train, y_test, label_map = _preprocess_data(
         X_train, y_train, X_test, y_test
@@ -52,16 +56,18 @@ def get_dataset(
     else: 
         X_val, y_val = None, None
     
-    # Save dataset information
-    _save_dataset_info(
-        dataset_info_path, dataname, X_train, X_val, X_test,
-        y_train, y_val, y_test, num_classes, diff_params
-    )
-    
     # Create datasets and normalize
     train_subset, val_subset, test_subset = _create_normalized_datasets(
         X_train, y_train, X_val, y_val, X_test, y_test,
         dataname, label_map, num_classes
+    )
+    if not loaders: 
+        return train_subset, val_subset, test_subset
+    
+    # Save dataset information
+    _save_dataset_info(
+        dataset_info_path, dataname, X_train, X_val, X_test,
+        y_train, y_val, y_test, num_classes, diff_params
     )
     
     # Create dataloaders
@@ -71,22 +77,23 @@ def get_dataset(
     return trainloader, valloader, testloader, config
 
 
-def _load_raw_data(dataname, config = None, **kwargs):
+def _load_raw_data(dataname, config = None, verbose = True, **kwargs):
     """Load raw data from synthetic generation or aeon datasets."""
     if "synthetic" in dataname:
         X_train, y_train ,X_test, y_test, num_classes, diff_params = load_data_with_difficulty(
             dataname, config
         )
     else:
-        base_data_dir = "paper_results/stl_baselines/datasets"
+        base_data_dir = kwargs.get('base_data_dir', "paper_results/stl_baselines/datasets")
         folder_path = os.path.join(base_data_dir, dataname)
         diff_params = {}
         
         if os.path.isdir(folder_path):
-            print(f"Loading dataset {dataname} from: {folder_path}")
+            if verbose:
+                print(f"Loading dataset {dataname} from: {folder_path}")
             seed = config.seed if config else 0
             # load your data here
-            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = seed, **kwargs)
+            X_train, X_test, y_train, y_test, num_classes = _load_data_from_folder(datafolder=folder_path, seed = seed)
             X_train = np.array(X_train)
             X_test = np.array(X_test)
             y_train = np.array(y_train)
