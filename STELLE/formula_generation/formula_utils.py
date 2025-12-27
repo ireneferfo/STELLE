@@ -340,7 +340,7 @@ def from_str_to_n_nodes(f):
 
 
 def get_num_vars(phi):
-    p = phi[0] if type(phi) == list else phi
+    p = phi[0] if type(phi) is list else phi
     phi_str = str(p)
     phi_split = phi_str.split()
     phi_var = [sub for sub in phi_split if sub.startswith("x_")]

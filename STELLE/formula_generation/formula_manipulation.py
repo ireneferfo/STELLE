@@ -18,6 +18,7 @@ from ..kernels.base_measure import BaseMeasure
 from ..utils import dump_pickle, chunks, save_file
 
 
+
 def time_scaling(phis, points, phi_timespan=101):
     # Rescale the time intervals in the given phis formulae
     current_one_percent = (
@@ -37,14 +38,14 @@ def time_scaling(phis, points, phi_timespan=101):
         temporal_end_idx = [
             i for i in range(len(phi_str)) if phi_str.startswith("]", i)
         ]
-        
+
         # Get the start index of the first interval, if any
         start_idx = temporal_start_idx[0] if len(temporal_start_idx) > 0 else None
         str_list = [
             phi_str[:start_idx]
         ]  # Initialize a list to store parts of the new formula
         new_intervals_list = []  # Initialize a list to store the new time intervals
-        
+
         # Iterate through the indices of the temporal intervals
         for i, s, m, e in zip(
             range(len(temporal_start_idx)),
@@ -62,43 +63,41 @@ def time_scaling(phis, points, phi_timespan=101):
                 float(phi_str[s + 1 : m]),
                 right_bound,
             ]  # this is the original interval
-            
+
             # Calculate the percentage/width of the current interval
             current_percentage = (
                 0
                 if right_unbound
                 else current_time_interval[1] - current_time_interval[0]
             )
-            
+
             # Scale the left bound
             new_left = math.floor(current_time_interval[0] * current_one_percent)
-            
+
             # Scale the interval width and ensure it's at least 1
-            interval_width = max(math.floor(current_percentage * current_one_percent), 1)
-            
+            interval_width = max(
+                math.floor(current_percentage * current_one_percent), 1
+            )
+
             # Calculate new right bound
             new_right = new_left + interval_width
-            
+
             # Clamp to valid range [new_left, points]
             new_right = max(new_left, min(new_right, points))
-            
+
             new_time_interval = [new_left, new_right]
-            
+
             new_right_str = (
                 "inf" if right_unbound else str(new_time_interval[1])
             )  # Determine the right bound as a string
-            
+
             # Construct the new interval string
             new_intervals_list += [
                 "[" + str(new_time_interval[0]) + "," + new_right_str + "]"
             ]
-            
+
             # Extract the part of the formula after the current interval
-            idx = (
-                temporal_start_idx[i + 1]
-                if i < len(temporal_start_idx) - 1
-                else None
-            )
+            idx = temporal_start_idx[i + 1] if i < len(temporal_start_idx) - 1 else None
             str_list.append(phi_str[e + 1 : idx])
 
         # Combine the parts of the formula and the new intervals to form the new formula string
@@ -107,17 +106,22 @@ def time_scaling(phis, points, phi_timespan=101):
             new_phi_str += str_list[i]
             new_phi_str += new_intervals_list[i]
         new_phi_str += str_list[-1]
-        
+
         # Convert the new formula string back to a formula object and add it to the list
         phis_scaled.append(from_string_to_formula(new_phi_str))
 
     return phis_scaled
-    
+
+
 def rhos_disjunction(precomputed_rhos, subset):
+    print(f'{precomputed_rhos.shape=}, {len(subset)=}')
     z1 = precomputed_rhos[subset[0]]
+    print(f'{z1.shape=}')
+    print(f'{subset.shape=}')
     for i in range(0, len(subset) - 1):
         # Or.quantitative, vectorize = False
         z2 = precomputed_rhos[subset[i + 1]]
+        print(f'{z2.shape=}')
         size: int = min(z1.size()[2], z2.size()[2])
         z1 = z1[:, :, :size]
         z2 = z2[:, :, :size]
@@ -153,15 +157,20 @@ def conjunction(formulae):
     else:
         return And(formulae[0], conjunction(formulae[1:]))
 
+
 MAX_DEPTH = 100
-def simplify(formula, depth = 0):
+
+
+def simplify(formula, depth=0):
     """
     Recursively simplifies STL formulae using logical equivalences and temporal rules.
     """
     if depth > MAX_DEPTH:
         return formula
-    try: node = copy.deepcopy(formula)
-    except: return formula
+    try:
+        node = copy.deepcopy(formula)
+    except Exception:
+        return formula
     # --- Recursively simplify children first ---
     if hasattr(node, "child"):
         node.child = simplify(node.child, depth + 1)
@@ -188,7 +197,8 @@ def simplify(formula, depth = 0):
                     left_time_bound=child.left_time_bound,
                     right_time_bound=child.right_time_bound,
                     child=Not(child.child),
-                ), depth + 1
+                ),
+                depth + 1,
             )
         elif isinstance(child, Globally):
             return simplify(
@@ -198,7 +208,8 @@ def simplify(formula, depth = 0):
                     left_time_bound=child.left_time_bound,
                     right_time_bound=child.right_time_bound,
                     child=Not(child.child),
-                ), depth + 1
+                ),
+                depth + 1,
             )
         elif isinstance(child, Or):
             # ¬(a ∨ b) → ¬a ∧ ¬b
@@ -206,7 +217,8 @@ def simplify(formula, depth = 0):
                 And(
                     left_child=simplify(Not(child.left_child), depth + 1),
                     right_child=simplify(Not(child.right_child), depth + 1),
-                ), depth + 1
+                ),
+                depth + 1,
             )
         elif isinstance(child, And):
             # ¬(a ∧ b) → ¬a ∨ ¬b
@@ -214,56 +226,57 @@ def simplify(formula, depth = 0):
                 Or(
                     left_child=simplify(Not(child.left_child), depth + 1),
                     right_child=simplify(Not(child.right_child), depth + 1),
-                ), depth + 1
+                ),
+                depth + 1,
             )
 
     # --- AND simplifications ---
     if isinstance(node, And):
-        l, r = node.left_child, node.right_child
-        if l == r:
-            return simplify(l, depth + 1)  # a ∧ a → a
+        left, right = node.left_child, node.right_child
+        if left == right:
+            return simplify(left, depth + 1)  # a ∧ a → a
 
         # a ∧ (a ∨ b) → a
-        if isinstance(r, Or) and (l == r.left_child or l == r.right_child):
-            return simplify(l, depth + 1)
-        if isinstance(l, Or) and (r == l.left_child or r == l.right_child):
-            return simplify(r, depth + 1)
+        if isinstance(right, Or) and (left == right.left_child or left == right.right_child):
+            return simplify(left, depth + 1)
+        if isinstance(left, Or) and (right == left.left_child or right == left.right_child):
+            return simplify(right, depth + 1)
 
         # a ∧ (a ∧ b) → a ∧ b
-        if isinstance(r, And):
-            if l == r.left_child:
-                return simplify(And(left_child=l, right_child=r.right_child), depth + 1)
-            if l == r.right_child:
-                return simplify(And(left_child=l, right_child=r.left_child), depth + 1)
-        if isinstance(l, And):
-            if r == l.left_child:
-                return simplify(And(left_child=r, right_child=l.right_child), depth + 1)
-            if r == l.right_child:
-                return simplify(And(left_child=r, right_child=l.left_child), depth + 1)
+        if isinstance(right, And):
+            if left == right.left_child:
+                return simplify(And(left_child=left, right_child=right.right_child), depth + 1)
+            if left == right.right_child:
+                return simplify(And(left_child=left, right_child=right.left_child), depth + 1)
+        if isinstance(left, And):
+            if right == left.left_child:
+                return simplify(And(left_child=right, right_child=left.right_child), depth + 1)
+            if right == left.right_child:
+                return simplify(And(left_child=right, right_child=left.left_child), depth + 1)
 
     # --- OR simplifications ---
     if isinstance(node, Or):
-        l, r = node.left_child, node.right_child
-        if l == r:
-            return simplify(l, depth + 1)  # a ∨ a → a
+        left, right = node.left_child, node.right_child
+        if left == right:
+            return simplify(left, depth + 1)  # a ∨ a → a
 
         # a ∨ (a ∧ b) → a
-        if isinstance(r, And) and (l == r.left_child or l == r.right_child):
-            return simplify(l, depth + 1)
-        if isinstance(l, And) and (r == l.left_child or r == l.right_child):
-            return simplify(r, depth + 1)
+        if isinstance(right, And) and (left == right.left_child or left == right.right_child):
+            return simplify(left, depth + 1)
+        if isinstance(left, And) and (right == left.left_child or right == left.right_child):
+            return simplify(right, depth + 1)
 
         # a ∨ (a ∨ b) → a ∨ b
-        if isinstance(r, Or):
-            if l == r.left_child:
-                return simplify(Or(left_child=l, right_child=r.right_child), depth + 1)
-            if l == r.right_child:
-                return simplify(Or(left_child=l, right_child=r.left_child), depth + 1)
-        if isinstance(l, Or):
-            if r == l.left_child:
-                return simplify(Or(left_child=r, right_child=l.right_child), depth + 1)
-            if r == l.right_child:
-                return simplify(Or(left_child=r, right_child=l.left_child), depth + 1)
+        if isinstance(right, Or):
+            if left == right.left_child:
+                return simplify(Or(left_child=left, right_child=right.right_child), depth + 1)
+            if left == right.right_child:
+                return simplify(Or(left_child=left, right_child=right.left_child), depth + 1)
+        if isinstance(left, Or):
+            if right == left.left_child:
+                return simplify(Or(left_child=right, right_child=left.right_child), depth + 1)
+            if right == left.right_child:
+                return simplify(Or(left_child=right, right_child=left.left_child), depth + 1)
 
     # --- Nested Globally simplification: G_I(G_J(φ)) → G_{I+J}(φ) ---
     if isinstance(node, Globally) and isinstance(node.child, Globally):
@@ -280,7 +293,8 @@ def simplify(formula, depth = 0):
                     else node.right_time_bound + inner.right_time_bound - 1
                 ),
                 child=copy.deepcopy(child),
-            ), depth + 1
+            ),
+            depth + 1,
         )
 
     # --- Nested Eventually simplification: F_I(F_J(φ)) → F_{I+J}(φ) ---
@@ -298,7 +312,8 @@ def simplify(formula, depth = 0):
                     else node.right_time_bound + inner.right_time_bound - 1
                 ),
                 child=copy.deepcopy(child),
-            ), depth + 1
+            ),
+            depth + 1,
         )
 
     # --- Until simplification: φ U φ → φ ---
@@ -376,24 +391,29 @@ def flatten_phi(node, operator):
 
 def simplify_by_robustness(node, robustness_map, eps=1e-5):
     if not isinstance(node, (Or, And)):
-            return node
-        
+        return node
+
     left = simplify_by_robustness(node.left_child, robustness_map, eps)
     right = simplify_by_robustness(node.right_child, robustness_map, eps)
-    
+
     subformulae = []
+
     def collect_subformulae(n):
         if isinstance(n, type(node)):
             collect_subformulae(n.left_child)
             collect_subformulae(n.right_child)
         else:
             subformulae.append(n)
-            
+
     collect_subformulae(left)
     collect_subformulae(right)
 
     num_traj = len(next(iter(robustness_map.values())))  # Infer trajectory count
-    ref_rob = [-float("inf")] * num_traj if isinstance(node, Or) else [float("inf")] * num_traj
+    ref_rob = (
+        [-float("inf")] * num_traj
+        if isinstance(node, Or)
+        else [float("inf")] * num_traj
+    )
 
     for f in subformulae:
         rob = robustness_map.get(str(f), None)
@@ -413,18 +433,20 @@ def simplify_by_robustness(node, robustness_map, eps=1e-5):
         if rob is None:
             useful.append(f)  # Keep if no robustness data
             continue
+
         # Only keep if both close and sign matches, and skip NaN/Inf/zero
         def is_contributing(i):
-            r = rob[i].detach()
+            right = rob[i].detach()
             rr = ref_rob[i].detach()
             # Skip if either is nan or inf
-            if not np.isfinite(r) or not np.isfinite(rr):
+            if not np.isfinite(right) or not np.isfinite(rr):
                 return False
             # Skip if both are zero
-            if r == 0 and rr == 0:
+            if right == 0 and rr == 0:
                 return False
             # Check closeness and sign
-            return abs(r - rr) < eps and (np.sign(r) == np.sign(rr))
+            return abs(right - rr) < eps and (np.sign(right) == np.sign(rr))
+
         contributes = any(is_contributing(i) for i in range(num_traj))
         if contributes:
             useful.append(f)
@@ -433,23 +455,30 @@ def simplify_by_robustness(node, robustness_map, eps=1e-5):
 
     if not useful:
         return Boolean(False if isinstance(node, Or) else True)
-    return reduce(lambda a, b: type(node)(a, b), useful) if len(useful) > 1 else useful[0]
+    return (
+        reduce(lambda a, b: type(node)(a, b), useful) if len(useful) > 1 else useful[0]
+    )
 
 
 def evaluate_and_simplify(formula, x, operator: str = None):
     # x: trajectories to evaluate
-    try: simple = simplify(formula)
-    except : simple = formula
+    try:
+        simple = simplify(formula)
+    except Exception:
+        simple = formula
     # if operator == 'or': operator = Or
     # elif operator == 'and': operator = And
     # else: raise ValueError('Operator should be either "and" or "or".')
     atoms = extract_all_atoms(str(simple))
     truth_map = get_atom_truth_over_time(x, atoms)
-    
-    try: simple = simplify(rimplify(simple, truth_map, x))
-    except: simple = rimplify(simple, truth_map, x)
+
+    try:
+        simple = simplify(rimplify(simple, truth_map, x))
+    except Exception:
+        simple = rimplify(simple, truth_map, x)
+
     # try: flat = flatten_phi(simplify(simple), operator)
-    # except: flat = flatten_phi(simple, operator)
+    # except Exception: flat = flatten_phi(simple, operator)
     # robustness_map = get_robustness_map(flat, x, operator)
     def get_all_subformulas(n):
         subformulas = set()
@@ -463,7 +492,7 @@ def evaluate_and_simplify(formula, x, operator: str = None):
         f_str: from_string_to_formula(f_str).quantitative(x).squeeze()
         for f_str in get_all_subformulas(simple)
     }
-    out =  simplify_by_robustness(simple, robustness_map)
+    out = simplify_by_robustness(simple, robustness_map)
     return out
 
 
@@ -515,7 +544,7 @@ def rimplify(node, truth_map, x, prevent_final_boolean=True, _depth=0):
     """
     Simplifies an STL formula, optionally preventing the root node from collapsing to a Boolean.
     """
-    time_len = len(truth_map[list(truth_map.keys())[0]])
+    # time_len = len(truth_map[list(truth_map.keys())[0]])
 
     def _simplify(n, depth):
         if isinstance(n, Atom):
@@ -536,26 +565,26 @@ def rimplify(node, truth_map, x, prevent_final_boolean=True, _depth=0):
             return Not(child)
 
         if isinstance(n, And):
-            l = _simplify(n.left_child, depth + 1)
-            r = _simplify(n.right_child, depth + 1)
-            if isinstance(l, Boolean) and isinstance(r, Boolean):
-                return Boolean(l.value and r.value)
-            if isinstance(l, Boolean):
-                return r if l.value else Boolean(False)
-            if isinstance(r, Boolean):
-                return l if r.value else Boolean(False)
-            return And(l, r)
+            left = _simplify(n.left_child, depth + 1)
+            right = _simplify(n.right_child, depth + 1)
+            if isinstance(left, Boolean) and isinstance(right, Boolean):
+                return Boolean(left.value and right.value)
+            if isinstance(left, Boolean):
+                return right if left.value else Boolean(False)
+            if isinstance(right, Boolean):
+                return left if right.value else Boolean(False)
+            return And(left, right)
 
         if isinstance(n, Or):
-            l = _simplify(n.left_child, depth + 1)
-            r = _simplify(n.right_child, depth + 1)
-            if isinstance(l, Boolean) and isinstance(r, Boolean):
-                return Boolean(l.value or r.value)
-            if isinstance(l, Boolean):
-                return r if not l.value else Boolean(True)
-            if isinstance(r, Boolean):
-                return l if not r.value else Boolean(True)
-            return Or(l, r)
+            left = _simplify(n.left_child, depth + 1)
+            right = _simplify(n.right_child, depth + 1)
+            if isinstance(left, Boolean) and isinstance(right, Boolean):
+                return Boolean(left.value or right.value)
+            if isinstance(left, Boolean):
+                return right if not left.value else Boolean(True)
+            if isinstance(right, Boolean):
+                return left if not right.value else Boolean(True)
+            return Or(left, right)
 
         if isinstance(n, (Globally, Eventually)) and n.unbound:
             child = _simplify(n.child, depth + 1)
@@ -586,27 +615,27 @@ def rimplify(node, truth_map, x, prevent_final_boolean=True, _depth=0):
             )
 
         if isinstance(n, Until):
-            l = _simplify(n.left_child, depth + 1)
-            r = _simplify(n.right_child, depth + 1)
+            left = _simplify(n.left_child, depth + 1)
+            right = _simplify(n.right_child, depth + 1)
 
-            if isinstance(l, Boolean) and isinstance(r, Boolean):
-                return Boolean(r.value or (l.value and r.value))
-            if isinstance(r, Boolean):
-                if r.value:
-                    if n.unbound or n.left_time_bound == 0: # Globally[0,0]
-                        return l
+            if isinstance(left, Boolean) and isinstance(right, Boolean):
+                return Boolean(right.value or (left.value and right.value))
+            if isinstance(right, Boolean):
+                if right.value:
+                    if n.unbound or n.left_time_bound == 0:  # Globally[0,0]
+                        return left
                     return Globally(
-                        l,
+                        left,
                         left_time_bound=0,
                         right_time_bound=n.left_time_bound,
                         unbound=n.unbound,
                     )
                 else:
                     return Boolean(False)
-            if isinstance(l, Boolean):
-                if l.value:
+            if isinstance(left, Boolean):
+                if left.value:
                     return Eventually(
-                        r,
+                        right,
                         left_time_bound=n.left_time_bound,
                         right_time_bound=n.right_time_bound,
                         unbound=n.unbound,
@@ -615,8 +644,8 @@ def rimplify(node, truth_map, x, prevent_final_boolean=True, _depth=0):
                 else:
                     return Boolean(False)
             return Until(
-                left_child=l,
-                right_child=r,
+                left_child=left,
+                right_child=right,
                 left_time_bound=n.left_time_bound,
                 right_time_bound=n.right_time_bound,
                 unbound=n.unbound,
@@ -632,7 +661,7 @@ def rimplify(node, truth_map, x, prevent_final_boolean=True, _depth=0):
     if prevent_final_boolean and isinstance(result, Boolean):
         # print('would be boolean: ', node)
         return node  # return the original unsimplified root
-    
+
     # #! safety exits
     # se non mantiene i segni
     formula_rho = node.quantitative(x)
@@ -671,14 +700,19 @@ def contains_boolean(node):
         return contains_boolean(node.left_child) or contains_boolean(node.right_child)
     return False
 
+
 MAX_DEPTH = 100
-def rescale_var_thresholds(formula, val, depth = 0):
+
+
+def rescale_var_thresholds(formula, val, depth=0):
     # Function to rescale the threshold values of formulae by a given value
     # Deep copy the formula to prevent modification of the original
     if depth > MAX_DEPTH:
         return formula
-    try: current_node = copy.deepcopy(formula)
-    except: return formula
+    try:
+        current_node = copy.deepcopy(formula)
+    except Exception:
+        return formula
     # Traverse the formula recursively
     if type(current_node) is not Atom:
         if type(current_node) is Not:
@@ -693,9 +727,7 @@ def rescale_var_thresholds(formula, val, depth = 0):
             left_child = rescale_var_thresholds(current_node.left_child, val, depth + 1)
             current_node.left_child = copy.deepcopy(left_child)
         else:
-            if (type(current_node) is Eventually) or (
-                type(current_node) is Globally
-            ):
+            if (type(current_node) is Eventually) or (type(current_node) is Globally):
                 child = rescale_var_thresholds(current_node.child, val, depth + 1)
                 current_node.child = copy.deepcopy(child)
         if (
@@ -704,7 +736,9 @@ def rescale_var_thresholds(formula, val, depth = 0):
             or (type(current_node) is Until)
         ):
             # Process right child recursively
-            right_child = rescale_var_thresholds(current_node.right_child, val, depth + 1)
+            right_child = rescale_var_thresholds(
+                current_node.right_child, val, depth + 1
+            )
             current_node.right_child = copy.deepcopy(right_child)
     else:
         # Treat `<=` and `>=` differently
@@ -795,9 +829,7 @@ def traverse_formula(formula, task="var_thresh", prop_list=None):
             )
             current_node.left_child = copy.deepcopy(left_child)
         else:
-            if (type(current_node) is Eventually) or (
-                type(current_node) is Globally
-            ):
+            if (type(current_node) is Eventually) or (type(current_node) is Globally):
                 if task in ["temp_thresh", "all_thresh"]:
                     assert prop_list is not None
                     if type(prop_list) is not list:
@@ -858,15 +890,9 @@ def find_all_paths(formula, part, tot):
             part.append(1)
         else:
             part.append(0)
-        left_child = (
-            formula.left_child if type(formula) is not Not else formula.child
-        )
+        left_child = formula.left_child if type(formula) is not Not else formula.child
     find_all_paths(left_child, part, tot)
-    if (
-        (type(formula) is Until)
-        or (type(formula) is And)
-        or (type(formula) is Or)
-    ):
+    if (type(formula) is Until) or (type(formula) is And) or (type(formula) is Or):
         right_child = formula.right_child
         find_all_paths(right_child, part, tot)
     part.pop()
@@ -1216,7 +1242,7 @@ def _select_from_similarity(phis, kernel, threshold, pll):
     gram = kernel.compute_bag(phis, pll=pll)  # compute gram matrix
     low_tri = torch.tril(gram, diagonal=-1)  # extract lower triangular
     phi_similarity = [
-        np.where(low_tri[r, :] > threshold)[0].tolist() for r in range(low_tri.shape[0])
+        np.where(low_tri[right, :] > threshold)[0].tolist() for right in range(low_tri.shape[0])
     ]  # find similar items
     set_similarity = set(list(np.arange(len(phis)))).difference(
         set([i for sublist in phi_similarity for i in sublist])
