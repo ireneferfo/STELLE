@@ -114,19 +114,18 @@ def time_scaling(phis, points, phi_timespan=101):
 
 
 def rhos_disjunction(precomputed_rhos, subset):
-    print(f'{precomputed_rhos.shape=}, {len(subset)=}')
     z1 = precomputed_rhos[subset[0]]
-    print(f'{z1.shape=}')
-    print(f'{subset.shape=}')
     for i in range(0, len(subset) - 1):
         # Or.quantitative, vectorize = False
         z2 = precomputed_rhos[subset[i + 1]]
-        print(f'{z2.shape=}')
-        size: int = min(z1.size()[2], z2.size()[2])
-        z1 = z1[:, :, :size]
-        z2 = z2[:, :, :size]
+        
+        # Since z1 and z2 are 2D, get the minimum time dimension
+        size: int = min(z1.size()[1], z2.size()[1])
+        z1 = z1[:, :size]
+        z2 = z2[:, :size]
         z1 = torch.max(z1, z2)  # new z1
-    return torch.reshape(z1[:, 0, 0], (-1,))
+    
+    return z1[:, 0]  # Return first timestep for all samples
 
 
 def rhos_conjunction(z1, z2):
