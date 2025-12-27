@@ -78,7 +78,7 @@ PARAMS = {
     #     "epochs": 200,
     # },
     # UEA
-    "ArticularyWordRecognition": { # aumentare formule?
+    "ArticularyWordRecognition": {  # aumentare formule?
         "lr": 5e-5,
         "bs": 32,
         "h": 256,
@@ -105,22 +105,23 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 1050,
     },
-    # 'Cricket': {'lr': 1e-6,
-    #              'bs': 32,
-    #              'h': 512,
-    #              'n_layers': 0,
-    #              'd': 0.2,
-    #              'init_crel': 1,
-    #              'epochs': 4
-    #              },
+    "Cricket": {
+        "lr": 1e-6,
+        "bs": 16,
+        "h": 512,
+        "n_layers": 0,
+        "d": 0.2,
+        "init_crel": 1,
+        "epochs": 4,
+    },
     "Epilepsy": {
-        "lr": 2e-5,
+        "lr": 3e-5,
         "bs": 16,
         "h": 256,
         "n_layers": 0,
         "d": 0.2,
         "init_crel": 1,
-        "epochs": 650,
+        "epochs": 980,
     },
     "ERing": {
         "lr": 1e-4,
@@ -147,7 +148,7 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 8,
     },
-    "Handwriting": { # non serve
+    "Handwriting": {  # non serve
         "lr": 1e-5,
         "bs": 32,
         "h": 512,
@@ -156,7 +157,7 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 30,
     },
-    # "Libras": {
+    # "Libras": { # no need, non fa bene
     #     "lr": 4e-5,
     #     "bs": 64,
     #     "h": 512,
