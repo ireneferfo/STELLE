@@ -26,10 +26,9 @@ def rescale_formulae(
         verbose = False
     )
 
-    points = train_subset.points
     mean, std = train_subset.mean, train_subset.std
 
-    pt = time_scaling(phis, points, 101)
-    out = inverse_normalize_phis(mean, std, pt)
+    # pt = time_scaling(phis, points, 101)
+    out = inverse_normalize_phis(mean, std, phis)
 
     return out
