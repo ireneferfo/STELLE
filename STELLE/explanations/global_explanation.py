@@ -237,8 +237,10 @@ class ClassExplanation(ExplanationBase):
             )
 
         # Postprocess and simplify
+        postprocessed_formula = self._postprocess_class_formulae([explanation_formula], class_label)[0]
+        
         final_formula = self._finalize_class_explanation(
-            explanation_formula, class_label
+            postprocessed_formula, class_label
         )
         self.explanation_readability_post[class_label] = readability(
             final_formula, "or"
