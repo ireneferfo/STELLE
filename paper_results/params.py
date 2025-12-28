@@ -87,7 +87,7 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 780,
     },
-    "AtrialFibrillation": {
+    "AtrialFibrillation": { # ++
         "lr": 1e-6,
         "bs": 32,
         "h": 512,
@@ -96,7 +96,7 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 4,
     },
-    "BasicMotions": {
+    "BasicMotions": { # +++
         "lr": 5e-4,
         "bs": 32,
         "h": 128,
@@ -105,16 +105,16 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 1050,
     },
-    "Cricket": {
-        "lr": 1e-6,
-        "bs": 16,
+    "Cricket": { # +
+        "lr": 2e-5,
+        "bs": 32,
         "h": 512,
         "n_layers": 0,
         "d": 0.2,
         "init_crel": 1,
-        "epochs": 4,
+        "epochs": 500,
     },
-    "Epilepsy": {
+    "Epilepsy": { # +
         "lr": 3e-5,
         "bs": 16,
         "h": 256,
@@ -123,7 +123,7 @@ PARAMS = {
         "init_crel": 1,
         "epochs": 980,
     },
-    "ERing": {
+    "ERing": { # -
         "lr": 1e-4,
         "bs": 32,
         "h": 256,
