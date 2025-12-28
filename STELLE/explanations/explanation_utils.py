@@ -22,7 +22,7 @@ from STELLE.explanations.explanation_metrics import (
 )
 
 
-def compute_explanations(args, locals = True, globals = False, save=True, verbose = False, **kwargs):
+def compute_explanations(args, locals = True, globals = False, save=True, verbose = False, local_n = 50, **kwargs):
     (model_path_ev, trainloader, testloader, model, config) = args
     device = model.device
     explanation_layer = model.output_activation.to(device)
@@ -32,7 +32,7 @@ def compute_explanations(args, locals = True, globals = False, save=True, verbos
     
     if locals:
         for i in ["true", "pred"]:
-            explpath = model_path_ev[:-3] + f"_local_explanations_{i}.pickle"
+            explpath = model_path_ev[:-3] + f"_local_explanations_{i}_{config.imp_t_l}_{local_n}.pickle"
             compute = True
             if os.path.exists(explpath):
                 try:
@@ -64,8 +64,8 @@ def compute_explanations(args, locals = True, globals = False, save=True, verbos
                     )
                 else:
                     local_explanations = model.get_explanations(
-                        x=testloader.dataset.trajectories,
-                        y_true=testloader.dataset.labels if i == "true" else None,
+                        x=testloader.dataset.trajectories[:local_n],
+                        y_true=testloader.dataset.labels[:local_n] if i == "true" else None,
                         trajbyclass=trajbyclass,
                         layer=explanation_layer,
                         t_k=config.t_k,
