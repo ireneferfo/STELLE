@@ -225,6 +225,7 @@ class ExperimentConfig:
     seed: int = 0
 
 
+
 def get_synthetic_difficulty_params(difficulty: int) -> dict:
     """
     Get parameters for synthetic data generation based on difficulty level.
@@ -240,47 +241,160 @@ def get_synthetic_difficulty_params(difficulty: int) -> dict:
         Parameters to pass to generate_synthetic_trajectories
     """
     # Clamp difficulty to valid range
-    difficulty = max(1, min(10, difficulty))
-
-    # Define parameter ranges
-    # Difficulty 1: Very easy (95%+ accuracy)
-    # Difficulty 5: Medium (85-90% accuracy)
-    # Difficulty 10: Very hard (60-70% accuracy)
-
-    # Linear interpolation between easy and hard parameters
-    t = (difficulty - 1) / 9.0  # Normalize to [0, 1]
-
-    params = {
-        # Class separation: high for easy, low for hard
-        "class_separation": 2.5 - t * 2.0,  # 2.5 -> 0.5
-        # Within-class variance: low for easy, high for hard
-        "inter_class_variance": 0.05 + t * 0.5,  # 0.05 -> 0.55
-        # Temporal noise: low for easy, high for hard
-        "temporal_noise_std": 0.05 + t * 0.35,  # 0.05 -> 0.40
-        # Fourier noise: none for easy, high for hard
-        "fourier_noise_std": t * 0.25,  # 0.0 -> 0.25
-        # Periodicity: strong for easy, weak for hard
-        "periodicity_strength": 1.0 - t * 0.6,  # 1.0 -> 0.4
-        # Frequency variation: low for easy, high for hard
-        "frequency_variation": 0.1 + t * 0.5,  # 0.1 -> 0.6
-        # Drift: low for easy, higher for hard
-        "drift_strength": 0.02 + t * 0.08,  # 0.02 -> 0.10
-        # Outliers: none for easy, some for hard
-        "outlier_prob": t * 0.08,  # 0.0 -> 0.08
-        # Phase coherence: high for easy, low for hard
-        "phase_coherence": 1.0 - t * 0.7,  # 1.0 -> 0.3
-        # Harmonics: use for easier cases
-        "use_harmonics": difficulty <= 7,
-        "n_harmonics": max(1, 3 - difficulty // 3),  # 3 -> 1
-        # Trend type: simpler for easy, more complex for hard
-        "trend_type": (
-            "linear"
-            if difficulty <= 5
-            else "quadratic" if difficulty <= 8 else "exponential"
-        ),
+    
+    # ANCHOR POINT: Difficulty 5 parameters (DO NOT CHANGE)
+    anchor_params = {
+        'class_separation': 1.5,
+        'inter_class_variance': 0.3,
+        'temporal_noise_std': 0.2,
+        'fourier_noise_std': 0.125,
+        'periodicity_strength': 0.7,
+        'frequency_variation': 0.35,
+        'drift_strength': 0.06,
+        'outlier_prob': 0.04,
+        'phase_coherence': 0.65,
+        'use_harmonics': True,
+        'n_harmonics': 2,
+        'trend_type': 'linear',
     }
-
+    
+    # Return anchor if difficulty == 5
+    if difficulty == 5:
+        return anchor_params
+    
+    # EASY ENDPOINT: Difficulty 1 (recalibrated for clearer separation)
+    easy_params = {
+        'class_separation': 3.0,           # Much higher separation
+        'inter_class_variance': 0.05,      # Very low variance
+        'temporal_noise_std': 0.05,        # Minimal noise
+        'fourier_noise_std': 0.0,          # No frequency noise
+        'periodicity_strength': 1.0,       # Perfect periodicity
+        'frequency_variation': 0.05,       # Very consistent frequencies
+        'drift_strength': 0.01,            # Minimal drift
+        'outlier_prob': 0.0,               # No outliers
+        'phase_coherence': 1.0,            # Perfect coherence
+        'use_harmonics': True,
+        'n_harmonics': 3,
+        'trend_type': 'linear',
+    }
+    
+    # HARD ENDPOINT: Difficulty 10 (recalibrated for monotonic degradation)
+    hard_params = {
+        'class_separation': 0.4,           # Lower separation
+        'inter_class_variance': 0.6,       # Higher variance
+        'temporal_noise_std': 0.45,        # More noise
+        'fourier_noise_std': 0.3,          # High frequency noise
+        'periodicity_strength': 0.3,       # Weak periodicity
+        'frequency_variation': 0.7,        # High frequency variation
+        'drift_strength': 0.15,            # Strong drift
+        'outlier_prob': 0.1,               # 10% outliers
+        'phase_coherence': 0.2,            # Low coherence
+        'use_harmonics': False,
+        'n_harmonics': 1,
+        'trend_type': 'exponential',
+    }
+    
+    # Interpolate based on which side of anchor we're on
+    if difficulty < 5:
+        # Interpolate between easy (1) and anchor (5)
+        t = (difficulty - 1) / 4.0  # 0 at diff=1, 1 at diff=5
+        params = {}
+        for key in anchor_params.keys():
+            if key in ['use_harmonics', 'trend_type']:
+                # Categorical parameters
+                if key == 'use_harmonics':
+                    params[key] = True
+                elif key == 'trend_type':
+                    params[key] = 'linear'
+                elif key == 'n_harmonics':
+                    params[key] = 3 if difficulty <= 2 else 2
+            else:
+                # Continuous parameters: linear interpolation
+                params[key] = easy_params[key] + t * (anchor_params[key] - easy_params[key])
+        
+        # Handle n_harmonics
+        if difficulty <= 2:
+            params['n_harmonics'] = 3
+        else:
+            params['n_harmonics'] = 2
+            
+    else:  # difficulty > 5
+        # Interpolate between anchor (5) and hard (10)
+        t = (difficulty - 5) / 5.0  # 0 at diff=5, 1 at diff=10
+        params = {}
+        for key in anchor_params.keys():
+            if key in ['use_harmonics', 'trend_type']:
+                # Categorical parameters
+                if key == 'use_harmonics':
+                    params[key] = True if difficulty <= 7 else False
+                elif key == 'trend_type':
+                    if difficulty <= 7:
+                        params[key] = 'linear'
+                    elif difficulty <= 9:
+                        params[key] = 'quadratic'
+                    else:
+                        params[key] = 'exponential'
+                elif key == 'n_harmonics':
+                    params[key] = 2 if difficulty <= 7 else 1
+            else:
+                # Continuous parameters: linear interpolation
+                params[key] = anchor_params[key] + t * (hard_params[key] - anchor_params[key])
+        
+        # Handle categorical transitions
+        if difficulty <= 7:
+            params['n_harmonics'] = 2
+            params['trend_type'] = 'linear'
+        elif difficulty <= 9:
+            params['n_harmonics'] = 1
+            params['trend_type'] = 'quadratic'
+        else:
+            params['n_harmonics'] = 1
+            params['trend_type'] = 'exponential'
+    
     return params
+
+
+    # difficulty = max(1, min(10, difficulty))
+
+    # # Define parameter ranges
+    # # Difficulty 1: Very easy (95%+ accuracy)
+    # # Difficulty 5: Medium (85-90% accuracy)
+    # # Difficulty 10: Very hard (60-70% accuracy)
+
+    # # Linear interpolation between easy and hard parameters
+    # t = (difficulty - 1) / 9.0  # Normalize to [0, 1]
+
+    # params = {
+    #     # Class separation: high for easy, low for hard
+    #     "class_separation": 2.5 - t * 2.0,  # 2.5 -> 0.5
+    #     # Within-class variance: low for easy, high for hard
+    #     "inter_class_variance": 0.05 + t * 0.5,  # 0.05 -> 0.55
+    #     # Temporal noise: low for easy, high for hard
+    #     "temporal_noise_std": 0.05 + t * 0.35,  # 0.05 -> 0.40
+    #     # Fourier noise: none for easy, high for hard
+    #     "fourier_noise_std": t * 0.25,  # 0.0 -> 0.25
+    #     # Periodicity: strong for easy, weak for hard
+    #     "periodicity_strength": 1.0 - t * 0.6,  # 1.0 -> 0.4
+    #     # Frequency variation: low for easy, high for hard
+    #     "frequency_variation": 0.1 + t * 0.5,  # 0.1 -> 0.6
+    #     # Drift: low for easy, higher for hard
+    #     "drift_strength": 0.02 + t * 0.08,  # 0.02 -> 0.10
+    #     # Outliers: none for easy, some for hard
+    #     "outlier_prob": t * 0.08,  # 0.0 -> 0.08
+    #     # Phase coherence: high for easy, low for hard
+    #     "phase_coherence": 1.0 - t * 0.7,  # 1.0 -> 0.3
+    #     # Harmonics: use for easier cases
+    #     "use_harmonics": difficulty <= 7,
+    #     "n_harmonics": max(1, 3 - difficulty // 3),  # 3 -> 1
+    #     # Trend type: simpler for easy, more complex for hard
+    #     "trend_type": (
+    #         "linear"
+    #         if difficulty <= 5
+    #         else "quadratic" if difficulty <= 8 else "exponential"
+    #     ),
+    # }
+
+    # return params
 
 
 def load_data_with_difficulty(dataname: str, config: ExperimentConfig):
