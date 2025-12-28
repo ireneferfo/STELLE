@@ -9,13 +9,15 @@ PARAMS = {
         "epochs": 120,
     },
     # UCR
-    # 'ECG200': {'lr': 1e-5,
-    #              'bs': 32,
-    #              'h': 512,
-    #              'n_layers': 0,
-    #              'd': 0.2,
-    #              'init_crel': 1
-    #              },
+    "ECG200": {
+        "lr": 5e-5,
+        "bs": 64,
+        "h": 128,
+        "n_layers": 2,
+        "d": 0.2,
+        "init_crel": 1,
+        "epochs": 30,
+    },
     "ECG5000": {
         "lr": 1e-4,
         "bs": 16,
