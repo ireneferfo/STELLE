@@ -1052,9 +1052,10 @@ class ClassExplanation(ExplanationBase):
             for i in range(self.num_classes)
         ]
         jitter = (
-            np.zeros(self.num_classes)
-            if highlight_target
-            else np.linspace(-0.1, 0.1, self.num_classes)
+            # np.zeros(self.num_classes)
+            # if highlight_target
+            # else 
+            np.linspace(-0.1, 0.1, self.num_classes)
         )
 
         class_trajectories = self._get_class_trajectories(class_label)

@@ -785,6 +785,43 @@ def _inverse_normalize_phis(formula, mean, std):
         ) + mean[current_node.var_index]
     return current_node
 
+def _normalize_phis(formula, mean, std):
+    # Function to inverse normalize the thresholds of formulae based on mean and standard deviation
+    # Deep copy the formula to prevent modification of the original
+    current_node = copy.deepcopy(formula)
+    # Traverse the formula recursively
+    if type(current_node) is not Atom:
+        if (
+            (type(current_node) is And)
+            or (type(current_node) is Or)
+            or (type(current_node) is Until)
+        ):
+            # Process left child recursively
+            left_child = _normalize_phis(current_node.left_child, mean, std)
+            current_node.left_child = copy.deepcopy(left_child)
+        else:
+            if (
+                (type(current_node) is Eventually)
+                or (type(current_node) is Globally)
+                or (type(current_node) is Not)
+            ):
+                # Process right child recursively
+                child = _normalize_phis(current_node.child, mean, std)
+                current_node.child = copy.deepcopy(child)
+        if (
+            (type(current_node) is And)
+            or (type(current_node) is Or)
+            or (type(current_node) is Until)
+        ):
+            right_child = _normalize_phis(current_node.right_child, mean, std)
+            current_node.right_child = copy.deepcopy(right_child)
+    else:
+        # Update threshold using inverse normalization
+        current_node.threshold = (
+                current_node.threshold - mean[current_node.var_index]
+            ) / std[current_node.var_index]
+    return current_node
+
 
 def inverse_normalize_phis(mean, std, phis):
     # Function to inverse normalize a list of formulae based on mean and standard deviation
@@ -794,6 +831,18 @@ def inverse_normalize_phis(mean, std, phis):
     phis = phis if type(phis) is list else [phis]  # also a single formula can be passed
     for phi in phis:  # Inverse normalize each formula in the list
         result = _inverse_normalize_phis(phi, mean, std)
+        phis_unnorm.append(result)
+    return phis_unnorm
+
+
+def normalize_phis(mean, std, phis):
+    # Function to inverse normalize a list of formulae based on mean and standard deviation
+    # Get mean and standard deviation for normalization
+    # mean, std = get_mean_std(dataname)
+    phis_unnorm = []
+    phis = phis if type(phis) is list else [phis]  # also a single formula can be passed
+    for phi in phis:  # Inverse normalize each formula in the list
+        result = _normalize_phis(phi, mean, std)
         phis_unnorm.append(result)
     return phis_unnorm
 
